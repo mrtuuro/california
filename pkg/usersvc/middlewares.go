@@ -30,3 +30,10 @@ func (mw loggingMiddleware) Register(ctx context.Context, user *model.User) (err
 	}(time.Now())
 	return mw.next.Register(ctx, user)
 }
+
+func (mw loggingMiddleware) Login(ctx context.Context, email string, password string) (token string, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log("method", "Login", "email", email, "took", time.Since(begin), "err", err)
+	}(time.Now())
+	return mw.next.Login(ctx, email, password)
+}

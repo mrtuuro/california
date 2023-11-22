@@ -15,6 +15,7 @@ import (
 type Store interface {
 	InsertUser(ctx context.Context, user *model.User) error
 	UserExists(ctx context.Context, email, phoneNumber string) (bool, error)
+	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 }
 
 type MongoStore struct {
@@ -43,6 +44,18 @@ func (s *MongoStore) UserExists(ctx context.Context, email, phoneNumber string) 
 	count, err := s.Coll.CountDocuments(context.Background(), filter)
 	return count > 0, err
 
+}
+
+func (s *MongoStore) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+	var user model.User
+	filter := bson.M{"Email": email}
+	err := s.Coll.FindOne(context.Background(), filter).Decode(&user)
+	if err != nil && err == mongo.ErrNoDocuments {
+		return nil, mongo.ErrNoDocuments
+	} else if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 func ConnectDB(dbUri, dbName, collectionName string) (*mongo.Client, *mongo.Collection) {

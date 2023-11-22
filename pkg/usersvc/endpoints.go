@@ -9,11 +9,13 @@ import (
 
 type EndPoints struct {
 	RegisterEndpoint endpoint.Endpoint
+	LoginEndpoint    endpoint.Endpoint
 }
 
 func MakeServerEndpoints(s UserService) EndPoints {
 	return EndPoints{
-		RegisterEndpoint: MakeRegisterEndPoint(s),
+		RegisterEndpoint: MakeRegisterEndpoint(s),
+		LoginEndpoint:    MakeLoginEndpoint(s),
 	}
 }
 
@@ -27,7 +29,7 @@ func (e EndPoints) Register(ctx context.Context, user *model.User) error {
 	return resp.Err
 }
 
-func MakeRegisterEndPoint(s UserService) endpoint.Endpoint {
+func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(registerRequest)
 		e := s.Register(ctx, req.User)
@@ -38,10 +40,35 @@ func MakeRegisterEndPoint(s UserService) endpoint.Endpoint {
 	}
 }
 
+func MakeLoginEndpoint(s UserService) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(loginRequest)
+		token, e := s.Login(ctx, req.Email, req.Password)
+		return loginResponse{
+			Token: token,
+			Err:   e,
+		}, nil
+	}
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type loginResponse struct {
+	Token string `json:"token,omitempty"`
+	Err   error  `json:"err,omitempty"`
+}
+
+func (e loginResponse) error() error { return e.Err }
+
+// registerRequest is used to decode json request body of register endpoint's.
 type registerRequest struct {
 	User *model.User
 }
 
+// registerResponse is used to encode json response body of register endpoint's.
 type registerResponse struct {
 	Token string `json:"token,omitempty"`
 	Err   error  `json:"err,omitempty"`
