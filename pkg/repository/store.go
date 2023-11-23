@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -14,8 +15,9 @@ import (
 
 type Store interface {
 	InsertUser(ctx context.Context, user *model.User) error
-	UserExists(ctx context.Context, email, phoneNumber string) (bool, error)
+	UserExists(ctx context.Context, email string) (bool, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
+	InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error
 }
 
 type MongoStore struct {
@@ -39,8 +41,8 @@ func (s *MongoStore) InsertUser(ctx context.Context, user *model.User) error {
 	return nil
 }
 
-func (s *MongoStore) UserExists(ctx context.Context, email, phoneNumber string) (bool, error) {
-	filter := bson.M{"$or": []bson.M{{"Email": email}, {"PhoneNumber": phoneNumber}}}
+func (s *MongoStore) UserExists(ctx context.Context, email string) (bool, error) {
+	filter := bson.M{"$or": []bson.M{{"Email": email}}}
 	count, err := s.Coll.CountDocuments(context.Background(), filter)
 	return count > 0, err
 
@@ -50,12 +52,22 @@ func (s *MongoStore) GetUserByEmail(ctx context.Context, email string) (*model.U
 	var user model.User
 	filter := bson.M{"Email": email}
 	err := s.Coll.FindOne(context.Background(), filter).Decode(&user)
-	if err != nil && err == mongo.ErrNoDocuments {
+	if err != nil && errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, mongo.ErrNoDocuments
 	} else if err != nil {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (s *MongoStore) InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error {
+	filter := bson.M{"Email": user.Email}
+	update := bson.M{"$set": bson.M{"Vehicle": vehicle}}
+	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func ConnectDB(dbUri, dbName, collectionName string) (*mongo.Client, *mongo.Collection) {

@@ -10,12 +10,15 @@ import (
 type EndPoints struct {
 	RegisterEndpoint endpoint.Endpoint
 	LoginEndpoint    endpoint.Endpoint
+
+	VehicleRegisterEndpoint endpoint.Endpoint
 }
 
-func MakeServerEndpoints(s UserService) EndPoints {
+func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 	return EndPoints{
-		RegisterEndpoint: MakeRegisterEndpoint(s),
-		LoginEndpoint:    MakeLoginEndpoint(s),
+		RegisterEndpoint:        MakeRegisterEndpoint(s),
+		LoginEndpoint:           MakeLoginEndpoint(s),
+		VehicleRegisterEndpoint: MakeVehicleRegisterEndpoint(c, s),
 	}
 }
 
@@ -51,6 +54,18 @@ func MakeLoginEndpoint(s UserService) endpoint.Endpoint {
 	}
 }
 
+func MakeVehicleRegisterEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(vehicleRegisterRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		e := s.VehicleRegister(c, req.Vehicle)
+		return vehicleRegisterResponse{
+			Err: e,
+		}, nil
+	}
+}
+
 type loginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -75,3 +90,14 @@ type registerResponse struct {
 }
 
 func (e registerResponse) error() error { return e.Err }
+
+type vehicleRegisterRequest struct {
+	Context context.Context
+	Vehicle *model.Vehicle
+}
+
+type vehicleRegisterResponse struct {
+	Err error `json:"err,omitempty"`
+}
+
+func (e vehicleRegisterResponse) error() error { return e.Err }

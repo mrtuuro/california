@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -24,15 +25,18 @@ func main() {
 	cfg := config.NewConfig()
 
 	var svc usersvc.UserService
+	signingKey := os.Getenv("SECRET_KEY")
+	c := context.WithValue(context.Background(), "foo", "bar")
 	{
 		store := repository.NewMongoStore(cfg)
 		svc = usersvc.NewUserService(store)
+		svc = usersvc.AuthMiddleware(signingKey)(svc)
 		svc = usersvc.LoggingMiddleware(logger)(svc)
 	}
 
 	var h http.Handler
 	{
-		h = usersvc.MakeHTTPHandler(svc, log.With(logger, "component", "HTTP"))
+		h = usersvc.MakeHTTPHandler(c, svc, log.With(logger, "component", "HTTP"), signingKey)
 	}
 
 	errs := make(chan error)

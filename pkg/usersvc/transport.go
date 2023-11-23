@@ -3,7 +3,9 @@ package usersvc
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/transport"
@@ -11,9 +13,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func MakeHTTPHandler(s UserService, log log.Logger) http.Handler {
+func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKey string) http.Handler {
 	r := mux.NewRouter()
-	e := MakeServerEndpoints(s)
+	e := MakeServerEndpoints(c, s)
 	options := []httptransport.ServerOption{
 		httptransport.ServerErrorHandler(transport.NewLogErrorHandler(log)),
 		httptransport.ServerErrorEncoder(encodeError),
@@ -21,6 +23,7 @@ func MakeHTTPHandler(s UserService, log log.Logger) http.Handler {
 
 	// POST /register/ adds a new user to the database.
 	// POST /login/ logs in a user and returns a token.
+	// POST /vehicle/register/ adds a new vehicle to the database.
 
 	r.Methods("POST").Path("/register/").Handler(httptransport.NewServer(
 		e.RegisterEndpoint,
@@ -28,10 +31,15 @@ func MakeHTTPHandler(s UserService, log log.Logger) http.Handler {
 		encodeResponse,
 		options...,
 	))
-
 	r.Methods("POST").Path("/login/").Handler(httptransport.NewServer(
 		e.LoginEndpoint,
 		decodeLoginRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("POST").Path("/vehicle/register/").Handler(httptransport.NewServer(
+		e.VehicleRegisterEndpoint,
+		decodeVehicleRegisterRequest,
 		encodeResponse,
 		options...,
 	))
@@ -56,6 +64,25 @@ func decodeLoginRequest(_ context.Context, r *http.Request) (interface{}, error)
 	return req, nil
 }
 
+func decodeVehicleRegisterRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthToken
+	}
+	ctx = context.WithValue(ctx, "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req vehicleRegisterRequest
+	req.Context = c
+
+	if e := json.NewDecoder(r.Body).Decode(&req.Vehicle); e != nil {
+		return nil, e
+	}
+	return req, nil
+
+}
+
 type errorer interface {
 	error() error
 }
@@ -76,6 +103,7 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		panic("encodeError with nil error")
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+
 	w.WriteHeader(codeFrom(err))
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -84,14 +112,14 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 }
 
 func codeFrom(err error) int {
-	switch err {
-	case ErrNotFound:
+	switch {
+	case errors.Is(err, ErrNotFound):
 		return http.StatusNotFound // 404
-	case ErrAlreadyExists, ErrInconsistentIDs:
+	case errors.Is(err, ErrAlreadyExists), errors.Is(err, ErrInconsistentIDs):
 		return http.StatusBadRequest // 400
-	case ErrAuthentication:
+	case errors.Is(err, ErrAuthentication):
 		return http.StatusUnauthorized // 401
-	case ErrPasswordEmailDoesNotMatch:
+	case errors.Is(err, ErrPasswordEmailDoesNotMatch):
 		return http.StatusUnauthorized // 401
 	default:
 		return http.StatusInternalServerError // 500

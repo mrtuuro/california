@@ -14,10 +14,9 @@ func main() {
 	cfg := config.NewConfig()
 	mongoStore := repository.NewMongoStore(cfg)
 	insertOneResult, err := mongoStore.Coll.InsertOne(context.Background(), &model2.User{
-		Name:        "John Doe",
-		PhoneNumber: "123456789",
-		Email:       "",
-		UserType:    model2.Normal,
+		Name:     "John Doe",
+		Email:    "",
+		UserType: model2.Normal,
 		Vehicle: model2.Vehicle{
 			Brand:              "BMW",
 			Model:              "X5",
