@@ -7,8 +7,10 @@ import (
 	"log"
 
 	"california/internal/config"
+	"california/internal/helpers"
 	"california/pkg/model"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -18,6 +20,7 @@ type Store interface {
 	UserExists(ctx context.Context, email string) (bool, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error
+	UpdateUser(ctx context.Context, reqUser *model.User) error
 }
 
 type MongoStore struct {
@@ -33,7 +36,7 @@ func NewMongoStore(cfg *config.Config) *MongoStore {
 	}
 }
 
-func (s *MongoStore) InsertUser(ctx context.Context, user *model.User) error {
+func (s *MongoStore) InsertUser(_ context.Context, user *model.User) error {
 	_, err := s.Coll.InsertOne(context.Background(), user)
 	if err != nil {
 		return err
@@ -41,14 +44,14 @@ func (s *MongoStore) InsertUser(ctx context.Context, user *model.User) error {
 	return nil
 }
 
-func (s *MongoStore) UserExists(ctx context.Context, email string) (bool, error) {
+func (s *MongoStore) UserExists(_ context.Context, email string) (bool, error) {
 	filter := bson.M{"$or": []bson.M{{"Email": email}}}
 	count, err := s.Coll.CountDocuments(context.Background(), filter)
 	return count > 0, err
 
 }
 
-func (s *MongoStore) GetUserByEmail(ctx context.Context, email string) (*model.User, error) {
+func (s *MongoStore) GetUserByEmail(_ context.Context, email string) (*model.User, error) {
 	var user model.User
 	filter := bson.M{"Email": email}
 	err := s.Coll.FindOne(context.Background(), filter).Decode(&user)
@@ -60,9 +63,32 @@ func (s *MongoStore) GetUserByEmail(ctx context.Context, email string) (*model.U
 	return &user, nil
 }
 
-func (s *MongoStore) InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error {
+func (s *MongoStore) InsertVehicleToUser(_ context.Context, user *model.User, vehicle *model.Vehicle) error {
 	filter := bson.M{"Email": user.Email}
 	update := bson.M{"$set": bson.M{"Vehicle": vehicle}}
+	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *MongoStore) UpdateUser(ctx context.Context, reqUser *model.User) error {
+	userId := ctx.Value("userId").(string)
+	oid, _ := primitive.ObjectIDFromHex(userId)
+	fmt.Println(oid)
+	fmt.Println(userId)
+
+	filter := bson.M{"id": oid}
+	update := bson.M{"$set": bson.M{"Name": reqUser.Name}}
+	if reqUser.Password != "" {
+		newHashedPass, err := helpers.HashRegisterPassword(reqUser.Password)
+		if err != nil {
+			return err
+		}
+		update = bson.M{"$set": bson.M{"Name": reqUser.Name, "Password": newHashedPass}}
+	}
+
 	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err

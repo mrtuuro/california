@@ -15,7 +15,7 @@ type Config struct {
 }
 
 func NewConfig() *Config {
-	err := godotenv.Load("/Users/tozay/go/src/california/dev.env")
+	err := godotenv.Load("./dev.env")
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}

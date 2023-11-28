@@ -7,6 +7,7 @@ import (
 	"california/internal/helpers"
 	"california/pkg/model"
 	"california/pkg/repository"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type UserService interface {
@@ -16,6 +17,12 @@ type UserService interface {
 
 	// VehicleRegister and VehicleUpdate are public methods of the vehicle.
 	VehicleRegister(ctx context.Context, vehicle *model.Vehicle) error
+
+	// GetMe is used to get the user's information and fill the blanks in the client.
+	GetMe(ctx context.Context) (*model.User, error)
+
+	// UpdateUserInfo is used to update the user's information.
+	UpdateUserInfo(ctx context.Context, user *model.User) error
 }
 
 type userService struct {
@@ -46,11 +53,14 @@ func (s *userService) Register(ctx context.Context, user *model.User) error {
 
 	// Here we create a token for the user and return it to the client.
 	// Later on client will have to use this token to send requests to the server.
-	token, err := helpers.GenerateToken(user.Email)
+
+	oidStr := primitive.NewObjectID().Hex()
+	token, err := helpers.GenerateToken(user.Email, oidStr)
 	if err != nil {
 		return err
 	}
 	user.RefreshToken = token
+	user.ID, _ = primitive.ObjectIDFromHex(oidStr)
 
 	// We need to hash the password before storing it in the database.
 	hashedPass, err := helpers.HashRegisterPassword(user.Password)
@@ -63,6 +73,7 @@ func (s *userService) Register(ctx context.Context, user *model.User) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -80,7 +91,7 @@ func (s *userService) Login(ctx context.Context, email string, password string) 
 	}
 
 	// Email and password matched, so we generate an access token and return it to the client.
-	token, err := helpers.GenerateToken(user.Email)
+	token, err := helpers.GenerateToken(user.Email, user.ID.Hex())
 	if err != nil {
 		return "", err
 	}
@@ -98,6 +109,22 @@ func (s *userService) VehicleRegister(ctx context.Context, vehicle *model.Vehicl
 	}
 
 	if err = s.store.InsertVehicleToUser(ctx, user, vehicle); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *userService) GetMe(ctx context.Context) (*model.User, error) {
+	email := ctx.Value("email").(string)
+	user, err := s.store.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (s *userService) UpdateUserInfo(ctx context.Context, user *model.User) error {
+	if err := s.store.UpdateUser(ctx, user); err != nil {
 		return err
 	}
 	return nil

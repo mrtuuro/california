@@ -8,10 +8,11 @@ import (
 )
 
 type EndPoints struct {
-	RegisterEndpoint endpoint.Endpoint
-	LoginEndpoint    endpoint.Endpoint
-
+	RegisterEndpoint        endpoint.Endpoint
+	LoginEndpoint           endpoint.Endpoint
 	VehicleRegisterEndpoint endpoint.Endpoint
+	GetMeEndpoint           endpoint.Endpoint
+	UpdateUserEndpoint      endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
@@ -19,6 +20,8 @@ func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 		RegisterEndpoint:        MakeRegisterEndpoint(s),
 		LoginEndpoint:           MakeLoginEndpoint(s),
 		VehicleRegisterEndpoint: MakeVehicleRegisterEndpoint(c, s),
+		GetMeEndpoint:           MakeGetMeEndpoint(c, s),
+		UpdateUserEndpoint:      MakeUpdateUserEndpoint(c, s),
 	}
 }
 
@@ -65,6 +68,53 @@ func MakeVehicleRegisterEndpoint(c context.Context, s UserService) endpoint.Endp
 		}, nil
 	}
 }
+
+func MakeGetMeEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(getMeRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		user, e := s.GetMe(c)
+		return getMeResponse{
+			User: user,
+			Err:  e,
+		}, nil
+	}
+}
+
+func MakeUpdateUserEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(updateUserRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		e := s.UpdateUserInfo(c, req.User)
+		return updateUserResponse{
+			Err: e,
+		}, nil
+	}
+}
+
+type updateUserRequest struct {
+	Context context.Context
+	User    *model.User
+}
+
+type updateUserResponse struct {
+	Err error `json:"err,omitempty"`
+}
+
+func (e updateUserResponse) error() error { return e.Err }
+
+type getMeRequest struct {
+	Context context.Context
+}
+
+type getMeResponse struct {
+	User *model.User `json:"user,omitempty"`
+	Err  error       `json:"err,omitempty"`
+}
+
+func (e getMeResponse) error() error { return e.Err }
 
 type loginRequest struct {
 	Email    string `json:"email"`

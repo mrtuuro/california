@@ -24,6 +24,8 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 	// POST /register/ adds a new user to the database.
 	// POST /login/ logs in a user and returns a token.
 	// POST /vehicle/register/ adds a new vehicle to the database.
+	// GET /me/ returns the user's information.
+	// PUT /user/ updates the user's information.
 
 	r.Methods("POST").Path("/register/").Handler(httptransport.NewServer(
 		e.RegisterEndpoint,
@@ -43,8 +45,32 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 		encodeResponse,
 		options...,
 	))
-
+	r.Methods("GET").Path("/me/").Handler(httptransport.NewServer(
+		e.GetMeEndpoint,
+		decodeGetMeRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("PUT").Path("/user/").Handler(httptransport.NewServer(
+		e.UpdateUserEndpoint,
+		decodeUpdateUserRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
+}
+
+func decodeGetMeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthToken
+	}
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req getMeRequest
+	req.Context = c
+	return req, nil
 }
 
 func decodeRegisterRequest(_ context.Context, r *http.Request) (interface{}, error) {
@@ -77,6 +103,25 @@ func decodeVehicleRegisterRequest(ctx context.Context, r *http.Request) (interfa
 	req.Context = c
 
 	if e := json.NewDecoder(r.Body).Decode(&req.Vehicle); e != nil {
+		return nil, e
+	}
+	return req, nil
+
+}
+
+func decodeUpdateUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthToken
+	}
+	ctx = context.WithValue(ctx, "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req updateUserRequest
+	req.Context = c
+
+	if e := json.NewDecoder(r.Body).Decode(&req.User); e != nil {
 		return nil, e
 	}
 	return req, nil

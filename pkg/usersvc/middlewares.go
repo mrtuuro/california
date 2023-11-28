@@ -28,7 +28,11 @@ type loggingMiddleware struct {
 
 func (mw loggingMiddleware) Register(ctx context.Context, user *model.User) (err error) {
 	defer func(begin time.Time) {
-		mw.logger.Log("method", "Register", "email", user.Email, "took", time.Since(begin), "err", err)
+		mw.logger.Log(
+			"method", "Register",
+			"email", user.Email,
+			"took", time.Since(begin),
+			"err", err)
 	}(time.Now())
 	return mw.next.Register(ctx, user)
 }
@@ -50,6 +54,28 @@ func (mw loggingMiddleware) VehicleRegister(ctx context.Context, vehicle *model.
 	return mw.next.VehicleRegister(ctx, vehicle)
 }
 
+func (mw loggingMiddleware) GetMe(ctx context.Context) (user *model.User, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetMe",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.GetMe(ctx)
+}
+
+func (mw loggingMiddleware) UpdateUserInfo(ctx context.Context, user *model.User) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "UpdateUserInfo",
+			"took", time.Since(begin),
+			"id", user.ID,
+			"email", user.Email,
+			"err", err)
+	}(time.Now())
+	return mw.next.UpdateUserInfo(ctx, user)
+}
+
 type authMiddleware struct {
 	next       UserService
 	signingKey string
@@ -65,30 +91,28 @@ func (aw authMiddleware) Login(ctx context.Context, email string, password strin
 }
 
 func (aw authMiddleware) VehicleRegister(ctx context.Context, vehicle *model.Vehicle) (err error) {
-	// Extract the JWT token from the request header and validate it.
-	tokenString := ctx.Value("Authorization").(string)
-	if tokenString == "" {
-		return ErrNoAuthToken
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
 	}
-	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
-	// Parse the token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Ensure the token algorithm is what you expect:
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, ErrUnexpectedSigningMethod
-		}
-		return []byte(aw.signingKey), nil
-	})
-	if err != nil {
-		return ErrInvalidToken
-	}
+	return aw.next.VehicleRegister(ctx, vehicle)
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		ctx = context.WithValue(ctx, "email", claims["Email"])
-		return aw.next.VehicleRegister(ctx, vehicle)
-	}
-	return ErrInvalidToken
+}
 
+func (aw authMiddleware) GetMe(ctx context.Context) (user *model.User, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.GetMe(ctx)
+}
+
+func (aw authMiddleware) UpdateUserInfo(ctx context.Context, user *model.User) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.UpdateUserInfo(ctx, user)
 }
 
 func AuthMiddleware(signingKey string) Middleware {
@@ -98,4 +122,31 @@ func AuthMiddleware(signingKey string) Middleware {
 			signingKey: signingKey,
 		}
 	}
+}
+
+func isAuthenticated(ctx context.Context, signingKey string) (context.Context, error) {
+	// Extract the JWT token from the request header and validate it.
+	tokenString := ctx.Value("Authorization").(string)
+	if tokenString == "" {
+		return nil, ErrNoAuthToken
+	}
+	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
+	// Parse the token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the token algorithm is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, ErrUnexpectedSigningMethod
+		}
+		return []byte(signingKey), nil
+	})
+	if err != nil {
+		return nil, ErrInvalidToken
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		ctx = context.WithValue(ctx, "email", claims["Email"])
+		ctx = context.WithValue(ctx, "userId", claims["userId"])
+		return ctx, nil
+	}
+	return nil, ErrInvalidToken
 }
