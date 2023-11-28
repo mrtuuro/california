@@ -23,6 +23,9 @@ type UserService interface {
 
 	// UpdateUserInfo is used to update the user's information.
 	UpdateUserInfo(ctx context.Context, user *model.User) error
+
+	// UpdateVehicleInfo is used to update the vehicle's information.
+	UpdateVehicleInfo(ctx context.Context, vehicle *model.Vehicle) error
 }
 
 type userService struct {
@@ -125,6 +128,13 @@ func (s *userService) GetMe(ctx context.Context) (*model.User, error) {
 
 func (s *userService) UpdateUserInfo(ctx context.Context, user *model.User) error {
 	if err := s.store.UpdateUser(ctx, user); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *userService) UpdateVehicleInfo(ctx context.Context, vehicle *model.Vehicle) error {
+	if err := s.store.UpdateVehicle(ctx, vehicle); err != nil {
 		return err
 	}
 	return nil

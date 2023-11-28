@@ -26,6 +26,7 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 	// POST /vehicle/register/ adds a new vehicle to the database.
 	// GET /me/ returns the user's information.
 	// PUT /user/ updates the user's information.
+	// PUT /vehicle/ updates the vehicle's information.
 
 	r.Methods("POST").Path("/register/").Handler(httptransport.NewServer(
 		e.RegisterEndpoint,
@@ -54,6 +55,12 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 	r.Methods("PUT").Path("/user/").Handler(httptransport.NewServer(
 		e.UpdateUserEndpoint,
 		decodeUpdateUserRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("PUT").Path("/vehicle/").Handler(httptransport.NewServer(
+		e.UpdateVehicleEndpoint,
+		decodeUpdateVehicleRequest,
 		encodeResponse,
 		options...,
 	))
@@ -126,6 +133,24 @@ func decodeUpdateUserRequest(ctx context.Context, r *http.Request) (interface{},
 	}
 	return req, nil
 
+}
+
+func decodeUpdateVehicleRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthToken
+	}
+	ctx = context.WithValue(ctx, "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req updateVehicleRequest
+	req.Context = c
+
+	if e := json.NewDecoder(r.Body).Decode(&req.Vehicle); e != nil {
+		return nil, e
+	}
+	return req, nil
 }
 
 type errorer interface {

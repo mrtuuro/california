@@ -13,6 +13,7 @@ type EndPoints struct {
 	VehicleRegisterEndpoint endpoint.Endpoint
 	GetMeEndpoint           endpoint.Endpoint
 	UpdateUserEndpoint      endpoint.Endpoint
+	UpdateVehicleEndpoint   endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
@@ -22,6 +23,7 @@ func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 		VehicleRegisterEndpoint: MakeVehicleRegisterEndpoint(c, s),
 		GetMeEndpoint:           MakeGetMeEndpoint(c, s),
 		UpdateUserEndpoint:      MakeUpdateUserEndpoint(c, s),
+		UpdateVehicleEndpoint:   MakeUpdateVehicleEndpoint(c, s),
 	}
 }
 
@@ -93,6 +95,29 @@ func MakeUpdateUserEndpoint(c context.Context, s UserService) endpoint.Endpoint 
 		}, nil
 	}
 }
+
+func MakeUpdateVehicleEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(updateVehicleRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		e := s.UpdateVehicleInfo(c, req.Vehicle)
+		return updateVehicleResponse{
+			Err: e,
+		}, nil
+	}
+}
+
+type updateVehicleRequest struct {
+	Context context.Context
+	Vehicle *model.Vehicle
+}
+
+type updateVehicleResponse struct {
+	Err error `json:"err,omitempty"`
+}
+
+func (e updateVehicleResponse) error() error { return e.Err }
 
 type updateUserRequest struct {
 	Context context.Context

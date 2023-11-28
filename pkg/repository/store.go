@@ -21,6 +21,7 @@ type Store interface {
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error
 	UpdateUser(ctx context.Context, reqUser *model.User) error
+	UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicle) error
 }
 
 type MongoStore struct {
@@ -89,6 +90,19 @@ func (s *MongoStore) UpdateUser(ctx context.Context, reqUser *model.User) error 
 		update = bson.M{"$set": bson.M{"Name": reqUser.Name, "Password": newHashedPass}}
 	}
 
+	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *MongoStore) UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicle) error {
+	userId := ctx.Value("userId").(string)
+	oid, _ := primitive.ObjectIDFromHex(userId)
+
+	filter := bson.M{"id": oid}
+	update := bson.M{"$set": bson.M{"Vehicle": reqVehicle}}
 	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
