@@ -7,15 +7,6 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-type BaseResponse struct {
-	Message string `json:"message,omitempty"`
-	Data    Data   `json:"data,omitempty"`
-}
-
-type Data struct {
-	registerResponse
-}
-
 type EndPoints struct {
 	RegisterEndpoint        endpoint.Endpoint
 	LoginEndpoint           endpoint.Endpoint
@@ -38,6 +29,21 @@ func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 	}
 }
 
+type BaseResponse struct {
+	Message string      `json:"message,omitempty"`
+	Data    interface{} `json:"data,omitempty"`
+}
+
+type Data struct {
+	registerResponse
+	loginResponse
+	vehicleRegisterResponse
+	getMeResponse
+	updateUserResponse
+	updateVehicleResponse
+	listAllUsersResponse
+}
+
 //
 //func (e EndPoints) Register(ctx context.Context, user *model.User) error {
 //	request := registerRequest{User: user}
@@ -54,26 +60,19 @@ func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 		req := request.(registerRequest)
 		insertedUser, e := s.Register(ctx, req.User)
 		if e != nil {
-			baseErrResponse := &BaseResponse{
-				Message: e.Error(),
-				Data:    Data{},
-			}
 			return registerResponse{
-				BaseResponse: baseErrResponse,
-			}, nil
+				Err: e,
+			}, e
 		}
 
 		// Generate data struct only for registerResponse.
-		data := Data{
-			registerResponse: registerResponse{
+		return BaseResponse{
+			Message: "success",
+			Data: registerResponse{
 				UserType: insertedUser.UserType,
 				Token:    req.User.RefreshToken,
 				Err:      e,
 			},
-		}
-		return BaseResponse{
-			Message: "success",
-			Data:    data,
 		}, nil
 
 		//return registerResponse{
@@ -106,12 +105,16 @@ func MakeLoginEndpoint(s UserService) endpoint.Endpoint {
 		if e != nil {
 			return loginResponse{
 				Err: e,
-			}, nil
+			}, e
 		}
-		return loginResponse{
-			UserType: user.UserType,
-			Token:    user.RefreshToken,
-			Err:      e,
+
+		return BaseResponse{
+			Message: "success",
+			Data: loginResponse{
+				UserType: user.UserType,
+				Token:    user.RefreshToken,
+				Err:      e,
+			},
 		}, nil
 	}
 }
@@ -122,6 +125,7 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
+	*BaseResponse
 	UserType model.UserType `json:"user_type,omitempty"`
 	Token    string         `json:"token,omitempty"`
 	Err      error          `json:"err,omitempty"`
@@ -135,8 +139,16 @@ func MakeVehicleRegisterEndpoint(c context.Context, s UserService) endpoint.Endp
 		jwt := req.Context.Value("jwt")
 		c = context.WithValue(c, "Authorization", jwt)
 		e := s.VehicleRegister(c, req.Vehicle)
-		return vehicleRegisterResponse{
-			Err: e,
+		if e != nil {
+			return vehicleRegisterResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: vehicleRegisterResponse{
+				Err: e,
+			},
 		}, nil
 	}
 }
@@ -147,6 +159,7 @@ type vehicleRegisterRequest struct {
 }
 
 type vehicleRegisterResponse struct {
+	*BaseResponse
 	Err error `json:"err,omitempty"`
 }
 
@@ -158,9 +171,18 @@ func MakeGetMeEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 		jwt := req.Context.Value("jwt")
 		c = context.WithValue(c, "Authorization", jwt)
 		user, e := s.GetMe(c)
-		return getMeResponse{
-			User: user,
-			Err:  e,
+		if e != nil {
+			return getMeResponse{
+				Err: e,
+			}, e
+		}
+
+		return BaseResponse{
+			Message: "success",
+			Data: getMeResponse{
+				User: user,
+				Err:  e,
+			},
 		}, nil
 	}
 }
@@ -170,6 +192,7 @@ type getMeRequest struct {
 }
 
 type getMeResponse struct {
+	*BaseResponse
 	User *model.User `json:"user,omitempty"`
 	Err  error       `json:"err,omitempty"`
 }
@@ -182,8 +205,16 @@ func MakeUpdateUserEndpoint(c context.Context, s UserService) endpoint.Endpoint 
 		jwt := req.Context.Value("jwt")
 		c = context.WithValue(c, "Authorization", jwt)
 		e := s.UpdateUserInfo(c, req.User)
-		return updateUserResponse{
-			Err: e,
+		if e != nil {
+			return updateUserResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: updateUserResponse{
+				Err: e,
+			},
 		}, nil
 	}
 }
@@ -194,6 +225,7 @@ type updateUserRequest struct {
 }
 
 type updateUserResponse struct {
+	*BaseResponse
 	Err error `json:"err,omitempty"`
 }
 
@@ -205,8 +237,16 @@ func MakeUpdateVehicleEndpoint(c context.Context, s UserService) endpoint.Endpoi
 		jwt := req.Context.Value("jwt")
 		c = context.WithValue(c, "Authorization", jwt)
 		e := s.UpdateVehicleInfo(c, req.Vehicle)
-		return updateVehicleResponse{
-			Err: e,
+		if e != nil {
+			return updateVehicleResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: updateVehicleResponse{
+				Err: e,
+			},
 		}, nil
 	}
 }
@@ -217,6 +257,7 @@ type updateVehicleRequest struct {
 }
 
 type updateVehicleResponse struct {
+	*BaseResponse
 	Err error `json:"err,omitempty"`
 }
 
@@ -228,9 +269,17 @@ func MakeListAllUsersEndpoint(c context.Context, s UserService) endpoint.Endpoin
 		jwt := req.Context.Value("jwt")
 		c = context.WithValue(c, "Authorization", jwt)
 		users, e := s.ListAllUsers(c)
-		return listAllUsersResponse{
-			Users: users,
-			Err:   e,
+		if e != nil {
+			return listAllUsersResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: listAllUsersResponse{
+				Users: users,
+				Err:   e,
+			},
 		}, nil
 	}
 }
@@ -240,6 +289,7 @@ type listAllUsersRequest struct {
 }
 
 type listAllUsersResponse struct {
+	*BaseResponse
 	Users []*model.User `json:"users,omitempty"`
 	Err   error         `json:"err,omitempty"`
 }

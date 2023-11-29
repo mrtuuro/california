@@ -78,7 +78,7 @@ func decodeGetUsersRequest(ctx context.Context, r *http.Request) (interface{}, e
 	authHeader := r.Header.Get("Authorization")
 	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
 	if authHeader == "" {
-		return nil, ErrNoAuthToken
+		return nil, ErrNoAuthTokenHeader
 	}
 	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
 	c := context.WithValue(r.Context(), "jwt", jwtToken)
@@ -91,7 +91,7 @@ func decodeGetMeRequest(ctx context.Context, r *http.Request) (interface{}, erro
 	authHeader := r.Header.Get("Authorization")
 	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
 	if authHeader == "" {
-		return nil, ErrNoAuthToken
+		return nil, ErrNoAuthTokenHeader
 	}
 	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
 	c := context.WithValue(r.Context(), "jwt", jwtToken)
@@ -121,7 +121,7 @@ func decodeVehicleRegisterRequest(ctx context.Context, r *http.Request) (interfa
 	authHeader := r.Header.Get("Authorization")
 	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
 	if authHeader == "" {
-		return nil, ErrNoAuthToken
+		return nil, ErrNoAuthTokenHeader
 	}
 	ctx = context.WithValue(ctx, "jwt", jwtToken)
 	c := context.WithValue(r.Context(), "jwt", jwtToken)
@@ -140,7 +140,7 @@ func decodeUpdateUserRequest(ctx context.Context, r *http.Request) (interface{},
 	authHeader := r.Header.Get("Authorization")
 	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
 	if authHeader == "" {
-		return nil, ErrNoAuthToken
+		return nil, ErrNoAuthTokenHeader
 	}
 	ctx = context.WithValue(ctx, "jwt", jwtToken)
 	c := context.WithValue(r.Context(), "jwt", jwtToken)
@@ -159,7 +159,7 @@ func decodeUpdateVehicleRequest(ctx context.Context, r *http.Request) (interface
 	authHeader := r.Header.Get("Authorization")
 	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
 	if authHeader == "" {
-		return nil, ErrNoAuthToken
+		return nil, ErrNoAuthTokenHeader
 	}
 	ctx = context.WithValue(ctx, "jwt", jwtToken)
 	c := context.WithValue(r.Context(), "jwt", jwtToken)
@@ -197,7 +197,8 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 	w.WriteHeader(codeFrom(err))
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": err.Error(),
+		"message": err.Error(),
+		"data":    nil,
 	})
 }
 
@@ -211,6 +212,8 @@ func codeFrom(err error) int {
 		return http.StatusUnauthorized // 401
 	case errors.Is(err, ErrPasswordEmailDoesNotMatch):
 		return http.StatusUnauthorized // 401
+	case errors.Is(err, ErrNoAuthTokenHeader):
+		return http.StatusUnauthorized
 	default:
 		return http.StatusInternalServerError // 500
 	}

@@ -41,7 +41,7 @@ var (
 	ErrNotFound                  = errors.New("not found")
 	ErrAuthentication            = errors.New("authentication failed")
 	ErrPasswordEmailDoesNotMatch = errors.New("password and email does not match")
-	ErrNoAuthToken               = errors.New("no auth token in the context")
+	ErrNoAuthTokenHeader         = errors.New("no auth token in the header")
 	ErrInternalDb                = errors.New("internal db error")
 	ErrUnexpectedSigningMethod   = errors.New("unexpected signing method")
 	ErrInvalidToken              = errors.New("invalid token")

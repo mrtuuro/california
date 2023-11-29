@@ -164,7 +164,7 @@ func isAuthenticated(ctx context.Context, signingKey string) (context.Context, e
 	// Extract the JWT token from the request header and validate it.
 	tokenString := ctx.Value("Authorization").(string)
 	if tokenString == "" {
-		return nil, ErrNoAuthToken
+		return nil, ErrNoAuthTokenHeader
 	}
 	tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 	// Parse the token
