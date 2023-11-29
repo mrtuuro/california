@@ -7,6 +7,15 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
+type BaseResponse struct {
+	Message string `json:"message,omitempty"`
+	Data    Data   `json:"data,omitempty"`
+}
+
+type Data struct {
+	registerResponse
+}
+
 type EndPoints struct {
 	RegisterEndpoint        endpoint.Endpoint
 	LoginEndpoint           endpoint.Endpoint
@@ -45,15 +54,33 @@ func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 		req := request.(registerRequest)
 		insertedUser, e := s.Register(ctx, req.User)
 		if e != nil {
+			baseErrResponse := &BaseResponse{
+				Message: e.Error(),
+				Data:    Data{},
+			}
 			return registerResponse{
-				Err: e,
+				BaseResponse: baseErrResponse,
 			}, nil
 		}
-		return registerResponse{
-			UserType: insertedUser.UserType,
-			Token:    req.User.RefreshToken,
-			Err:      e,
+
+		// Generate data struct only for registerResponse.
+		data := Data{
+			registerResponse: registerResponse{
+				UserType: insertedUser.UserType,
+				Token:    req.User.RefreshToken,
+				Err:      e,
+			},
+		}
+		return BaseResponse{
+			Message: "success",
+			Data:    data,
 		}, nil
+
+		//return registerResponse{
+		//	UserType: insertedUser.UserType,
+		//	Token:    req.User.RefreshToken,
+		//	Err:      e,
+		//}, nil
 	}
 }
 
@@ -64,6 +91,7 @@ type registerRequest struct {
 
 // registerResponse is used to encode json response body of register endpoint's.
 type registerResponse struct {
+	*BaseResponse
 	UserType model.UserType `json:"user_type,omitempty"`
 	Token    string         `json:"token,omitempty"`
 	Err      error          `json:"err,omitempty"`
