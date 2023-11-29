@@ -27,6 +27,7 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 	// GET /me/ returns the user's information.
 	// PUT /user/ updates the user's information.
 	// PUT /vehicle/ updates the vehicle's information.
+	// GET /users/ returns all users.
 
 	r.Methods("POST").Path("/register/").Handler(httptransport.NewServer(
 		e.RegisterEndpoint,
@@ -64,7 +65,26 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 		encodeResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/users/").Handler(httptransport.NewServer(
+		e.GetUsersEndpoint,
+		decodeGetUsersRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
+}
+
+func decodeGetUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthToken
+	}
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req listAllUsersRequest
+	req.Context = c
+	return req, nil
 }
 
 func decodeGetMeRequest(ctx context.Context, r *http.Request) (interface{}, error) {

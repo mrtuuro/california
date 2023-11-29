@@ -86,6 +86,16 @@ func (mw loggingMiddleware) UpdateVehicleInfo(ctx context.Context, vehicle *mode
 	return mw.next.UpdateVehicleInfo(ctx, vehicle)
 }
 
+func (mw loggingMiddleware) ListAllUsers(ctx context.Context) (users []*model.User, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ListAllUsers",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.ListAllUsers(ctx)
+}
+
 type authMiddleware struct {
 	next       UserService
 	signingKey string
@@ -131,6 +141,14 @@ func (aw authMiddleware) UpdateVehicleInfo(ctx context.Context, vehicle *model.V
 		return e
 	}
 	return aw.next.UpdateVehicleInfo(ctx, vehicle)
+}
+
+func (aw authMiddleware) ListAllUsers(ctx context.Context) (users []*model.User, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.ListAllUsers(ctx)
 }
 
 func AuthMiddleware(signingKey string) Middleware {

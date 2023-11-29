@@ -22,29 +22,30 @@ type Store interface {
 	InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error
 	UpdateUser(ctx context.Context, reqUser *model.User) error
 	UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicle) error
+	GetAllUsers(ctx context.Context) ([]*model.User, error)
 }
 
 type MongoStore struct {
-	Client *mongo.Client
-	Coll   *mongo.Collection
+	Client    *mongo.Client
+	UsersColl *mongo.Collection
 }
 
 func NewMongoStore(cfg *config.Config) *MongoStore {
 	client, coll := ConnectDB(cfg.MongoDBUri, cfg.DatabaseName, cfg.CollectionName)
 	return &MongoStore{
-		Client: client,
-		Coll:   coll,
+		Client:    client,
+		UsersColl: coll,
 	}
 }
 
 func (s *MongoStore) InsertUser(_ context.Context, user *model.User) (*model.User, error) {
 	var insertedUser *model.User
-	insertRes, err := s.Coll.InsertOne(context.Background(), user)
+	insertRes, err := s.UsersColl.InsertOne(context.Background(), user)
 	if err != nil {
 		return nil, err
 	}
 	insertedIdStr := insertRes.InsertedID.(primitive.ObjectID)
-	if err = s.Coll.FindOne(context.Background(), bson.M{"_id": insertedIdStr}).Decode(&insertedUser); err != nil {
+	if err = s.UsersColl.FindOne(context.Background(), bson.M{"_id": insertedIdStr}).Decode(&insertedUser); err != nil {
 		return nil, err
 	}
 	return insertedUser, nil
@@ -52,7 +53,7 @@ func (s *MongoStore) InsertUser(_ context.Context, user *model.User) (*model.Use
 
 func (s *MongoStore) UserExists(_ context.Context, email string) (bool, error) {
 	filter := bson.M{"$or": []bson.M{{"Email": email}}}
-	count, err := s.Coll.CountDocuments(context.Background(), filter)
+	count, err := s.UsersColl.CountDocuments(context.Background(), filter)
 	return count > 0, err
 
 }
@@ -60,7 +61,7 @@ func (s *MongoStore) UserExists(_ context.Context, email string) (bool, error) {
 func (s *MongoStore) GetUserByEmail(_ context.Context, email string) (*model.User, error) {
 	var user model.User
 	filter := bson.M{"Email": email}
-	err := s.Coll.FindOne(context.Background(), filter).Decode(&user)
+	err := s.UsersColl.FindOne(context.Background(), filter).Decode(&user)
 	if err != nil && errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, mongo.ErrNoDocuments
 	} else if err != nil {
@@ -72,7 +73,7 @@ func (s *MongoStore) GetUserByEmail(_ context.Context, email string) (*model.Use
 func (s *MongoStore) InsertVehicleToUser(_ context.Context, user *model.User, vehicle *model.Vehicle) error {
 	filter := bson.M{"Email": user.Email}
 	update := bson.M{"$set": bson.M{"Vehicle": vehicle}}
-	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
+	_, err := s.UsersColl.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func (s *MongoStore) UpdateUser(ctx context.Context, reqUser *model.User) error 
 		update = bson.M{"$set": bson.M{"Name": reqUser.Name, "Password": newHashedPass}}
 	}
 
-	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
+	_, err := s.UsersColl.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
@@ -108,11 +109,28 @@ func (s *MongoStore) UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicl
 
 	filter := bson.M{"id": oid}
 	update := bson.M{"$set": bson.M{"Vehicle": reqVehicle}}
-	_, err := s.Coll.UpdateOne(context.Background(), filter, update)
+	_, err := s.UsersColl.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func (s *MongoStore) GetAllUsers(ctx context.Context) ([]*model.User, error) {
+	var users []*model.User
+	cursor, err := s.UsersColl.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	for cursor.Next(context.Background()) {
+		var user model.User
+		if err := cursor.Decode(&user); err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+	return users, nil
 }
 
 func ConnectDB(dbUri, dbName, collectionName string) (*mongo.Client, *mongo.Collection) {

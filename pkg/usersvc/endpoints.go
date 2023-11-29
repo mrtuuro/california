@@ -14,6 +14,7 @@ type EndPoints struct {
 	GetMeEndpoint           endpoint.Endpoint
 	UpdateUserEndpoint      endpoint.Endpoint
 	UpdateVehicleEndpoint   endpoint.Endpoint
+	GetUsersEndpoint        endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
@@ -24,18 +25,20 @@ func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 		GetMeEndpoint:           MakeGetMeEndpoint(c, s),
 		UpdateUserEndpoint:      MakeUpdateUserEndpoint(c, s),
 		UpdateVehicleEndpoint:   MakeUpdateVehicleEndpoint(c, s),
+		GetUsersEndpoint:        MakeListAllUsersEndpoint(c, s),
 	}
 }
 
-func (e EndPoints) Register(ctx context.Context, user *model.User) error {
-	request := registerRequest{User: user}
-	response, err := e.RegisterEndpoint(ctx, request)
-	if err != nil {
-		return err
-	}
-	resp := response.(registerResponse)
-	return resp.Err
-}
+//
+//func (e EndPoints) Register(ctx context.Context, user *model.User) error {
+//	request := registerRequest{User: user}
+//	response, err := e.RegisterEndpoint(ctx, request)
+//	if err != nil {
+//		return err
+//	}
+//	resp := response.(registerResponse)
+//	return resp.Err
+//}
 
 func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
@@ -54,6 +57,20 @@ func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 	}
 }
 
+// registerRequest is used to decode json request body of register endpoint's.
+type registerRequest struct {
+	User *model.User
+}
+
+// registerResponse is used to encode json response body of register endpoint's.
+type registerResponse struct {
+	UserType model.UserType `json:"user_type,omitempty"`
+	Token    string         `json:"token,omitempty"`
+	Err      error          `json:"err,omitempty"`
+}
+
+func (e registerResponse) error() error { return e.Err }
+
 func MakeLoginEndpoint(s UserService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(loginRequest)
@@ -71,6 +88,19 @@ func MakeLoginEndpoint(s UserService) endpoint.Endpoint {
 	}
 }
 
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type loginResponse struct {
+	UserType model.UserType `json:"user_type,omitempty"`
+	Token    string         `json:"token,omitempty"`
+	Err      error          `json:"err,omitempty"`
+}
+
+func (e loginResponse) error() error { return e.Err }
+
 func MakeVehicleRegisterEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(vehicleRegisterRequest)
@@ -82,6 +112,17 @@ func MakeVehicleRegisterEndpoint(c context.Context, s UserService) endpoint.Endp
 		}, nil
 	}
 }
+
+type vehicleRegisterRequest struct {
+	Context context.Context
+	Vehicle *model.Vehicle
+}
+
+type vehicleRegisterResponse struct {
+	Err error `json:"err,omitempty"`
+}
+
+func (e vehicleRegisterResponse) error() error { return e.Err }
 
 func MakeGetMeEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {
@@ -96,6 +137,17 @@ func MakeGetMeEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 	}
 }
 
+type getMeRequest struct {
+	Context context.Context
+}
+
+type getMeResponse struct {
+	User *model.User `json:"user,omitempty"`
+	Err  error       `json:"err,omitempty"`
+}
+
+func (e getMeResponse) error() error { return e.Err }
+
 func MakeUpdateUserEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(updateUserRequest)
@@ -107,6 +159,17 @@ func MakeUpdateUserEndpoint(c context.Context, s UserService) endpoint.Endpoint 
 		}, nil
 	}
 }
+
+type updateUserRequest struct {
+	Context context.Context
+	User    *model.User
+}
+
+type updateUserResponse struct {
+	Err error `json:"err,omitempty"`
+}
+
+func (e updateUserResponse) error() error { return e.Err }
 
 func MakeUpdateVehicleEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {
@@ -131,62 +194,26 @@ type updateVehicleResponse struct {
 
 func (e updateVehicleResponse) error() error { return e.Err }
 
-type updateUserRequest struct {
+func MakeListAllUsersEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(listAllUsersRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		users, e := s.ListAllUsers(c)
+		return listAllUsersResponse{
+			Users: users,
+			Err:   e,
+		}, nil
+	}
+}
+
+type listAllUsersRequest struct {
 	Context context.Context
-	User    *model.User
 }
 
-type updateUserResponse struct {
-	Err error `json:"err,omitempty"`
+type listAllUsersResponse struct {
+	Users []*model.User `json:"users,omitempty"`
+	Err   error         `json:"err,omitempty"`
 }
 
-func (e updateUserResponse) error() error { return e.Err }
-
-type getMeRequest struct {
-	Context context.Context
-}
-
-type getMeResponse struct {
-	User *model.User `json:"user,omitempty"`
-	Err  error       `json:"err,omitempty"`
-}
-
-func (e getMeResponse) error() error { return e.Err }
-
-type loginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type loginResponse struct {
-	UserType model.UserType `json:"user_type,omitempty"`
-	Token    string         `json:"token,omitempty"`
-	Err      error          `json:"err,omitempty"`
-}
-
-func (e loginResponse) error() error { return e.Err }
-
-// registerRequest is used to decode json request body of register endpoint's.
-type registerRequest struct {
-	User *model.User
-}
-
-// registerResponse is used to encode json response body of register endpoint's.
-type registerResponse struct {
-	UserType model.UserType `json:"user_type,omitempty"`
-	Token    string         `json:"token,omitempty"`
-	Err      error          `json:"err,omitempty"`
-}
-
-func (e registerResponse) error() error { return e.Err }
-
-type vehicleRegisterRequest struct {
-	Context context.Context
-	Vehicle *model.Vehicle
-}
-
-type vehicleRegisterResponse struct {
-	Err error `json:"err,omitempty"`
-}
-
-func (e vehicleRegisterResponse) error() error { return e.Err }
+func (e listAllUsersResponse) error() error { return e.Err }

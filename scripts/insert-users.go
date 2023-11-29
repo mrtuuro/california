@@ -13,7 +13,7 @@ import (
 func main() {
 	cfg := config.NewConfig()
 	mongoStore := repository.NewMongoStore(cfg)
-	insertOneResult, err := mongoStore.Coll.InsertOne(context.Background(), &model2.User{
+	insertOneResult, err := mongoStore.UsersColl.InsertOne(context.Background(), &model2.User{
 		Name:     "John Doe",
 		Email:    "",
 		UserType: model2.Normal,

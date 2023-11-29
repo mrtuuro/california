@@ -26,6 +26,9 @@ type UserService interface {
 
 	// UpdateVehicleInfo is used to update the vehicle's information.
 	UpdateVehicleInfo(ctx context.Context, vehicle *model.Vehicle) error
+
+	// ListAllUsers is used to list all users.
+	ListAllUsers(ctx context.Context) ([]*model.User, error)
 }
 
 type userService struct {
@@ -138,6 +141,14 @@ func (s *userService) UpdateVehicleInfo(ctx context.Context, vehicle *model.Vehi
 		return err
 	}
 	return nil
+}
+
+func (s *userService) ListAllUsers(ctx context.Context) ([]*model.User, error) {
+	users, err := s.store.GetAllUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }
 
 func NewUserService(store repository.Store) UserService {
