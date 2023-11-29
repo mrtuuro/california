@@ -16,7 +16,7 @@ import (
 )
 
 type Store interface {
-	InsertUser(ctx context.Context, user *model.User) error
+	InsertUser(ctx context.Context, user *model.User) (*model.User, error)
 	UserExists(ctx context.Context, email string) (bool, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error
@@ -37,12 +37,17 @@ func NewMongoStore(cfg *config.Config) *MongoStore {
 	}
 }
 
-func (s *MongoStore) InsertUser(_ context.Context, user *model.User) error {
-	_, err := s.Coll.InsertOne(context.Background(), user)
+func (s *MongoStore) InsertUser(_ context.Context, user *model.User) (*model.User, error) {
+	var insertedUser *model.User
+	insertRes, err := s.Coll.InsertOne(context.Background(), user)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	insertedIdStr := insertRes.InsertedID.(primitive.ObjectID)
+	if err = s.Coll.FindOne(context.Background(), bson.M{"_id": insertedIdStr}).Decode(&insertedUser); err != nil {
+		return nil, err
+	}
+	return insertedUser, nil
 }
 
 func (s *MongoStore) UserExists(_ context.Context, email string) (bool, error) {

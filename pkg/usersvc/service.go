@@ -12,8 +12,8 @@ import (
 
 type UserService interface {
 	// Register and Login are public methods of the user.
-	Register(context.Context, *model.User) error
-	Login(ctx context.Context, email string, password string) (string, error)
+	Register(context.Context, *model.User) (insertedUser *model.User, err error)
+	Login(ctx context.Context, email string, password string) (*model.User, error)
 
 	// VehicleRegister and VehicleUpdate are public methods of the vehicle.
 	VehicleRegister(ctx context.Context, vehicle *model.Vehicle) error
@@ -45,13 +45,13 @@ var (
 )
 
 // Register TODO Add here to create a refresh token and return it to client.
-func (s *userService) Register(ctx context.Context, user *model.User) error {
+func (s *userService) Register(ctx context.Context, user *model.User) (*model.User, error) {
 	exists, err := s.store.UserExists(ctx, user.Email)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if exists {
-		return ErrAlreadyExists
+		return nil, ErrAlreadyExists
 	}
 
 	// Here we create a token for the user and return it to the client.
@@ -60,7 +60,7 @@ func (s *userService) Register(ctx context.Context, user *model.User) error {
 	oidStr := primitive.NewObjectID().Hex()
 	token, err := helpers.GenerateToken(user.Email, oidStr)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	user.RefreshToken = token
 	user.ID, _ = primitive.ObjectIDFromHex(oidStr)
@@ -68,40 +68,40 @@ func (s *userService) Register(ctx context.Context, user *model.User) error {
 	// We need to hash the password before storing it in the database.
 	hashedPass, err := helpers.HashRegisterPassword(user.Password)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	user.Password = hashedPass
-	err = s.store.InsertUser(ctx, user)
+	insertedUser, err := s.store.InsertUser(ctx, user)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return insertedUser, nil
 }
 
-func (s *userService) Login(ctx context.Context, email string, password string) (string, error) {
+func (s *userService) Login(ctx context.Context, email string, password string) (*model.User, error) {
 	// Get user by given email.
 	user, err := s.store.GetUserByEmail(ctx, email)
 	if err != nil {
-		return "", ErrNotFound
+		return nil, ErrNotFound
 	}
 
 	// We need to verify the given password with user's password.
 	err = helpers.CompareLoginPasswordAndHash(password, user.Password)
 	if err != nil {
-		return "", ErrPasswordEmailDoesNotMatch
+		return nil, ErrPasswordEmailDoesNotMatch
 	}
 
 	// Email and password matched, so we generate an access token and return it to the client.
 	token, err := helpers.GenerateToken(user.Email, user.ID.Hex())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// Use the created token to update the user's refresh token.
 	user.RefreshToken = token
-	return token, nil
+	return user, nil
 }
 
 func (s *userService) VehicleRegister(ctx context.Context, vehicle *model.Vehicle) error {

@@ -26,7 +26,7 @@ type loggingMiddleware struct {
 	logger log.Logger
 }
 
-func (mw loggingMiddleware) Register(ctx context.Context, user *model.User) (err error) {
+func (mw loggingMiddleware) Register(ctx context.Context, user *model.User) (insertedUser *model.User, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "Register",
@@ -37,7 +37,7 @@ func (mw loggingMiddleware) Register(ctx context.Context, user *model.User) (err
 	return mw.next.Register(ctx, user)
 }
 
-func (mw loggingMiddleware) Login(ctx context.Context, email string, password string) (token string, err error) {
+func (mw loggingMiddleware) Login(ctx context.Context, email string, password string) (insertedUser *model.User, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log("method", "Login", "email", email, "took", time.Since(begin), "err", err)
 	}(time.Now())
@@ -92,11 +92,11 @@ type authMiddleware struct {
 	c          context.Context
 }
 
-func (aw authMiddleware) Register(ctx context.Context, user *model.User) (err error) {
+func (aw authMiddleware) Register(ctx context.Context, user *model.User) (insertedUser *model.User, err error) {
 	return aw.next.Register(ctx, user)
 }
 
-func (aw authMiddleware) Login(ctx context.Context, email string, password string) (token string, err error) {
+func (aw authMiddleware) Login(ctx context.Context, email string, password string) (user *model.User, err error) {
 	return aw.next.Login(ctx, email, password)
 }
 

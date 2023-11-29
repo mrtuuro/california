@@ -40,10 +40,16 @@ func (e EndPoints) Register(ctx context.Context, user *model.User) error {
 func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(registerRequest)
-		e := s.Register(ctx, req.User)
+		insertedUser, e := s.Register(ctx, req.User)
+		if e != nil {
+			return registerResponse{
+				Err: e,
+			}, nil
+		}
 		return registerResponse{
-			Token: req.User.RefreshToken,
-			Err:   e,
+			UserType: insertedUser.UserType,
+			Token:    req.User.RefreshToken,
+			Err:      e,
 		}, nil
 	}
 }
@@ -51,10 +57,16 @@ func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 func MakeLoginEndpoint(s UserService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(loginRequest)
-		token, e := s.Login(ctx, req.Email, req.Password)
+		user, e := s.Login(ctx, req.Email, req.Password)
+		if e != nil {
+			return loginResponse{
+				Err: e,
+			}, nil
+		}
 		return loginResponse{
-			Token: token,
-			Err:   e,
+			UserType: user.UserType,
+			Token:    user.RefreshToken,
+			Err:      e,
 		}, nil
 	}
 }
@@ -147,8 +159,9 @@ type loginRequest struct {
 }
 
 type loginResponse struct {
-	Token string `json:"token,omitempty"`
-	Err   error  `json:"err,omitempty"`
+	UserType model.UserType `json:"user_type,omitempty"`
+	Token    string         `json:"token,omitempty"`
+	Err      error          `json:"err,omitempty"`
 }
 
 func (e loginResponse) error() error { return e.Err }
@@ -160,8 +173,9 @@ type registerRequest struct {
 
 // registerResponse is used to encode json response body of register endpoint's.
 type registerResponse struct {
-	Token string `json:"token,omitempty"`
-	Err   error  `json:"err,omitempty"`
+	UserType model.UserType `json:"user_type,omitempty"`
+	Token    string         `json:"token,omitempty"`
+	Err      error          `json:"err,omitempty"`
 }
 
 func (e registerResponse) error() error { return e.Err }
