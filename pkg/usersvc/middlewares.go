@@ -96,6 +96,16 @@ func (mw loggingMiddleware) ListAllUsers(ctx context.Context) (users []*model.Us
 	return mw.next.ListAllUsers(ctx)
 }
 
+func (mw loggingMiddleware) SearchUsers(ctx context.Context, name string) (users []*model.User, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "SearchUsers",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.SearchUsers(ctx, name)
+}
+
 type authMiddleware struct {
 	next       UserService
 	signingKey string
@@ -149,6 +159,14 @@ func (aw authMiddleware) ListAllUsers(ctx context.Context) (users []*model.User,
 		return nil, e
 	}
 	return aw.next.ListAllUsers(ctx)
+}
+
+func (aw authMiddleware) SearchUsers(ctx context.Context, name string) (users []*model.User, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.SearchUsers(ctx, name)
 }
 
 func AuthMiddleware(signingKey string) Middleware {

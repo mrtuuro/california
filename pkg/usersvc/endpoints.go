@@ -15,6 +15,7 @@ type EndPoints struct {
 	UpdateUserEndpoint      endpoint.Endpoint
 	UpdateVehicleEndpoint   endpoint.Endpoint
 	GetUsersEndpoint        endpoint.Endpoint
+	SearchUsers             endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
@@ -26,6 +27,7 @@ func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 		UpdateUserEndpoint:      MakeUpdateUserEndpoint(c, s),
 		UpdateVehicleEndpoint:   MakeUpdateVehicleEndpoint(c, s),
 		GetUsersEndpoint:        MakeListAllUsersEndpoint(c, s),
+		SearchUsers:             MakeSearchUsersEndpoint(c, s),
 	}
 }
 
@@ -34,26 +36,39 @@ type BaseResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-type Data struct {
-	registerResponse
-	loginResponse
-	vehicleRegisterResponse
-	getMeResponse
-	updateUserResponse
-	updateVehicleResponse
-	listAllUsersResponse
+func MakeSearchUsersEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(searchUsersRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		users, e := s.SearchUsers(c, req.Name)
+		if e != nil {
+			return searchUsersResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: searchUsersResponse{
+				Users: users,
+				Err:   e,
+			},
+		}, nil
+	}
 }
 
-//
-//func (e EndPoints) Register(ctx context.Context, user *model.User) error {
-//	request := registerRequest{User: user}
-//	response, err := e.RegisterEndpoint(ctx, request)
-//	if err != nil {
-//		return err
-//	}
-//	resp := response.(registerResponse)
-//	return resp.Err
-//}
+type searchUsersRequest struct {
+	Context context.Context
+	Name    string
+}
+
+type searchUsersResponse struct {
+	*BaseResponse
+	Users []*model.User `json:"users,omitempty"`
+	Err   error         `json:"err,omitempty"`
+}
+
+func (e searchUsersResponse) error() error { return e.Err }
 
 func MakeRegisterEndpoint(s UserService) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {

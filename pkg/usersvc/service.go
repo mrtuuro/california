@@ -7,6 +7,7 @@ import (
 	"california/internal/helpers"
 	"california/pkg/model"
 	"california/pkg/repository"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -29,6 +30,9 @@ type UserService interface {
 
 	// ListAllUsers is used to list all users.
 	ListAllUsers(ctx context.Context) ([]*model.User, error)
+
+	// SearchUsers is used to search users by their name.
+	SearchUsers(ctx context.Context, name string) ([]*model.User, error)
 }
 
 type userService struct {
@@ -149,6 +153,16 @@ func (s *userService) ListAllUsers(ctx context.Context) ([]*model.User, error) {
 		return nil, err
 	}
 	return users, nil
+}
+
+func (s *userService) SearchUsers(ctx context.Context, name string) ([]*model.User, error) {
+	filter := bson.M{"Name": bson.M{"$regex": primitive.Regex{Pattern: name, Options: "i"}}}
+	users, err := s.store.FindUsersByFilter(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+	return nil, nil
 }
 
 func NewUserService(store repository.Store) UserService {

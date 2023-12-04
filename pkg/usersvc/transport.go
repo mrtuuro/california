@@ -21,57 +21,81 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKe
 		httptransport.ServerErrorEncoder(encodeError),
 	}
 
-	// POST /register/ adds a new user to the database.
-	// POST /login/ logs in a user and returns a token.
-	// POST /vehicle/register/ adds a new vehicle to the database.
-	// GET /me/ returns the user's information.
-	// PUT /user/ updates the user's information.
-	// PUT /vehicle/ updates the vehicle's information.
-	// GET /users/ returns all users.
+	// POST /register adds a new user to the database.
+	// POST /login logs in a user and returns a token.
+	// POST /vehicle/register adds a new vehicle to the database.
+	// GET /me returns the user's information.
+	// PUT /user updates the user's information.
+	// PUT /vehicle updates the vehicle's information.
+	// GET /users returns all users.
+	// GET /users/search returns users by their name.
 
-	r.Methods("POST").Path("/register/").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/register").Handler(httptransport.NewServer(
 		e.RegisterEndpoint,
 		decodeRegisterRequest,
 		encodeResponse,
 		options...,
 	))
-	r.Methods("POST").Path("/login/").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/login").Handler(httptransport.NewServer(
 		e.LoginEndpoint,
 		decodeLoginRequest,
 		encodeResponse,
 		options...,
 	))
-	r.Methods("POST").Path("/vehicle/register/").Handler(httptransport.NewServer(
+	r.Methods("POST").Path("/vehicle/register").Handler(httptransport.NewServer(
 		e.VehicleRegisterEndpoint,
 		decodeVehicleRegisterRequest,
 		encodeResponse,
 		options...,
 	))
-	r.Methods("GET").Path("/me/").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/me").Handler(httptransport.NewServer(
 		e.GetMeEndpoint,
 		decodeGetMeRequest,
 		encodeResponse,
 		options...,
 	))
-	r.Methods("PUT").Path("/user/").Handler(httptransport.NewServer(
+	r.Methods("PUT").Path("/user").Handler(httptransport.NewServer(
 		e.UpdateUserEndpoint,
 		decodeUpdateUserRequest,
 		encodeResponse,
 		options...,
 	))
-	r.Methods("PUT").Path("/vehicle/").Handler(httptransport.NewServer(
+	r.Methods("PUT").Path("/vehicle").Handler(httptransport.NewServer(
 		e.UpdateVehicleEndpoint,
 		decodeUpdateVehicleRequest,
 		encodeResponse,
 		options...,
 	))
-	r.Methods("GET").Path("/users/").Handler(httptransport.NewServer(
+	r.Methods("GET").Path("/users").Handler(httptransport.NewServer(
 		e.GetUsersEndpoint,
 		decodeGetUsersRequest,
 		encodeResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/users/search").Handler(httptransport.NewServer(
+		e.SearchUsers,
+		decodeSearchUsersRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
+}
+
+func decodeSearchUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthTokenHeader
+	}
+
+	name := r.URL.Query().Get("name")
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req searchUsersRequest
+	req.Context = c
+	req.Name = name
+	return req, nil
 }
 
 func decodeGetUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {

@@ -20,21 +20,26 @@ type Store interface {
 	UserExists(ctx context.Context, email string) (bool, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
 	InsertVehicleToUser(ctx context.Context, user *model.User, vehicle *model.Vehicle) error
+	FindUsersByFilter(ctx context.Context, filter bson.M) ([]*model.User, error)
 	UpdateUser(ctx context.Context, reqUser *model.User) error
 	UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicle) error
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
 }
 
 type MongoStore struct {
-	Client    *mongo.Client
-	UsersColl *mongo.Collection
+	Client       *mongo.Client
+	UsersColl    *mongo.Collection
+	StationsColl *mongo.Collection
 }
 
 func NewMongoStore(cfg *config.Config) *MongoStore {
-	client, coll := ConnectDB(cfg.MongoDBUri, cfg.DatabaseName, cfg.CollectionName)
+	client := ConnectDB(cfg.MongoDBUri)
+	userColl := GetCollection(client, cfg.DatabaseName, cfg.UsersCollectionName)
+	stationsColl := GetCollection(client, cfg.DatabaseName, cfg.StationsCollectionName)
 	return &MongoStore{
-		Client:    client,
-		UsersColl: coll,
+		Client:       client,
+		UsersColl:    userColl,
+		StationsColl: stationsColl,
 	}
 }
 
@@ -133,17 +138,34 @@ func (s *MongoStore) GetAllUsers(ctx context.Context) ([]*model.User, error) {
 	return users, nil
 }
 
-func ConnectDB(dbUri, dbName, collectionName string) (*mongo.Client, *mongo.Collection) {
+func (s *MongoStore) FindUsersByFilter(ctx context.Context, filter bson.M) ([]*model.User, error) {
+	var users []*model.User
+	cursor, err := s.UsersColl.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	for cursor.Next(context.Background()) {
+		var user model.User
+		if err := cursor.Decode(&user); err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+	return users, nil
+}
+
+func ConnectDB(dbUri string) *mongo.Client {
 	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(dbUri))
 	if err != nil {
 		log.Fatal(err)
-		return nil, nil
-	}
-	coll := client.Database(dbName).Collection(collectionName)
-	if err := client.Ping(context.Background(), nil); err != nil {
-		log.Fatal(err)
-		return nil, nil
+		return nil
 	}
 	fmt.Println("Connected to Database!")
-	return client, coll
+	return client
+}
+
+func GetCollection(client *mongo.Client, dbName, collectionName string) *mongo.Collection {
+	coll := client.Database(dbName).Collection(collectionName)
+	return coll
 }

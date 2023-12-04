@@ -47,8 +47,8 @@ func main() {
 	}()
 
 	go func() {
-		logger.Log("transport", "HTTP", "addr", cfg.HttpAddr)
-		errs <- http.ListenAndServe(cfg.HttpAddr, h)
+		logger.Log("transport", "HTTP", "addr", cfg.UsersHttpAddr)
+		errs <- http.ListenAndServe(cfg.UsersHttpAddr, h)
 	}()
 
 	logger.Log("exit", <-errs)
