@@ -23,9 +23,38 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	}
 
 	// POST /station adds a new station to the database.
+	// GET /stations lists all the stations.
+	// PUT /station?id=<stationId> updates the station info.
+	// DELETE /station?id=<stationId> deletes the station.
+	// GEt /station/search?brand=<brandName> searches for a station by brand name.
+
 	r.Methods("POST").Path("/station").Handler(httptransport.NewServer(
 		e.StationRegisterEndpoint,
 		decodeStationRegisterRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/stations").Handler(httptransport.NewServer(
+		e.GetAllStationsEndpoint,
+		decodeGetAllStationsRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("PUT").Path("/station").Handler(httptransport.NewServer(
+		e.UpdateStationInfoEndpoint,
+		decodeUpdateStationInfoRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("DELETE").Path("/station").Handler(httptransport.NewServer(
+		e.RemoveStationEndpoint,
+		decodeRemoveStationRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/station/search").Handler(httptransport.NewServer(
+		e.SearchStationEndpoint,
+		decodeSearchStationRequest,
 		encodeResponse,
 		options...,
 	))
@@ -34,6 +63,60 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 
 type errorer interface {
 	error() error
+}
+
+func decodeSearchStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	brand := r.URL.Query().Get("brand")
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req searchStationRequest
+	req.Context = c
+	req.Brand = brand
+	return req, nil
+}
+
+func decodeRemoveStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	stationId := r.URL.Query().Get("id")
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req removeStationRequest
+	req.Context = c
+	req.StationID = stationId
+	return req, nil
+}
+
+func decodeUpdateStationInfoRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	stationId := r.URL.Query().Get("id")
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req updateStationInfoRequest
+	req.Context = c
+	req.StationID = stationId
+	if err := json.NewDecoder(r.Body).Decode(&req.Station); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 func decodeStationRegisterRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -51,6 +134,21 @@ func decodeStationRegisterRequest(ctx context.Context, r *http.Request) (interfa
 		return nil, err
 	}
 	return req, nil
+}
+
+func decodeGetAllStationsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req getAllStationsRequest
+	req.Context = c
+	return req, nil
+
 }
 
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {

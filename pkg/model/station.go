@@ -6,7 +6,7 @@ import (
 
 type Station struct {
 	ID          primitive.ObjectID `bson:"id,omitempty" json:"id,omitempty"` // This id is created by mongo and stored as 'id'
-	Name        string             `bson:"Name" json:"name"`
+	Brand       string             `bson:"Brand" json:"brand"`
 	Latitude    float64            `bson:"Latitude" json:"latitude"`
 	Longitude   float64            `bson:"Longitude" json:"longitude"`
 	Status      int                `bson:"Status" json:"status"`            // Silinebilir
@@ -17,9 +17,10 @@ type Station struct {
 }
 
 type Socket struct {
-	KW          float64 `bson:"KW" json:"kw,"`                    // Silinebilir
-	CurrentType int     `bson:"CurrentType" json:"current_type,"` // Silinebilir
-	Price       float64 `bson:"Price" json:"price,omitempty"`     // Silinebilir
-	SocketType  int     `bson:"SocketType" json:"socket_type,"`
-	Status      int     `bson:"Status" json:"status,"`
+	Name        string  `bson:"Name" json:"name"`                // Silinebilir
+	KW          float64 `bson:"KW" json:"kw"`                    // Silinebilir
+	CurrentType int     `bson:"CurrentType" json:"current_type"` // Silinebilir
+	Price       float64 `bson:"Price" json:"price"`              // Silinebilir
+	SocketType  int     `bson:"SocketType" json:"socket_type"`
+	Status      int     `bson:"Status" json:"status"`
 }

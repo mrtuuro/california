@@ -31,11 +31,54 @@ func (mw loggingMiddleware) StationRegister(ctx context.Context, station *model.
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "RegisterStation",
-			"station_name", station.Name,
+			"station_name", station.Brand,
 			"took", time.Since(begin),
 			"err", err)
 	}(time.Now())
 	return mw.next.StationRegister(ctx, station)
+}
+
+func (mw loggingMiddleware) SearchStation(ctx context.Context, brandName string) (stations []*model.Station, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "SearchStation",
+			"station_name", brandName,
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.SearchStation(ctx, brandName)
+}
+
+func (mw loggingMiddleware) GetStations(ctx context.Context) (stations []*model.Station, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetAllStations",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.GetStations(ctx)
+}
+
+func (mw loggingMiddleware) UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "UpdateStationInfo",
+			"station_name", station.Brand,
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.UpdateStation(ctx, station, stationId)
+}
+
+func (mw loggingMiddleware) RemoveStation(ctx context.Context, stationId string) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "RemoveStation",
+			"station_id", stationId,
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.RemoveStation(ctx, stationId)
 }
 
 type authMiddleware struct {
@@ -50,6 +93,38 @@ func (aw authMiddleware) StationRegister(ctx context.Context, station *model.Sta
 		return nil, e
 	}
 	return aw.next.StationRegister(ctx, station)
+}
+
+func (aw authMiddleware) GetStations(ctx context.Context) (stations []*model.Station, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.GetStations(ctx)
+}
+
+func (aw authMiddleware) UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.UpdateStation(ctx, station, stationId)
+}
+
+func (aw authMiddleware) RemoveStation(ctx context.Context, stationId string) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.RemoveStation(ctx, stationId)
+}
+
+func (aw authMiddleware) SearchStation(ctx context.Context, brandName string) (stations []*model.Station, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.SearchStation(ctx, brandName)
 }
 
 func AuthMiddleware(signingKey string) Middleware {
