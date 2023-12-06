@@ -13,7 +13,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func MakeHTTPHandler(c context.Context, s UserService, log log.Logger, signingKey string) http.Handler {
+func MakeHTTPHandler(c context.Context, s UserService, log log.Logger) http.Handler {
 	r := mux.NewRouter()
 	e := MakeServerEndpoints(c, s)
 	options := []httptransport.ServerOption{

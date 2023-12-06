@@ -36,7 +36,7 @@ func main() {
 
 	var h http.Handler
 	{
-		h = usersvc.MakeHTTPHandler(c, svc, log.With(logger, "component", "HTTP"), signingKey)
+		h = usersvc.MakeHTTPHandler(c, svc, log.With(logger, "component", "HTTP"))
 	}
 
 	errs := make(chan error)

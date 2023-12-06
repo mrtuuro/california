@@ -16,6 +16,7 @@ import (
 )
 
 type Store interface {
+	// These are the user related methods.
 	InsertUser(ctx context.Context, user *model.User) (*model.User, error)
 	UserExists(ctx context.Context, email string) (bool, error)
 	GetUserByEmail(ctx context.Context, email string) (*model.User, error)
@@ -24,6 +25,9 @@ type Store interface {
 	UpdateUser(ctx context.Context, reqUser *model.User) error
 	UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicle) error
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
+
+	// These are the station related methods.
+	InsertStation(ctx context.Context, station *model.Station) (*model.Station, error)
 }
 
 type MongoStore struct {
@@ -153,6 +157,19 @@ func (s *MongoStore) FindUsersByFilter(ctx context.Context, filter bson.M) ([]*m
 		users = append(users, &user)
 	}
 	return users, nil
+}
+
+func (s *MongoStore) InsertStation(ctx context.Context, station *model.Station) (*model.Station, error) {
+	var insertedStation *model.Station
+	insertRes, err := s.StationsColl.InsertOne(ctx, station)
+	if err != nil {
+		return nil, err
+	}
+	insertedIdStr := insertRes.InsertedID.(primitive.ObjectID)
+	if err = s.StationsColl.FindOne(ctx, bson.M{"_id": insertedIdStr}).Decode(&insertedStation); err != nil {
+		return nil, err
+	}
+	return insertedStation, nil
 }
 
 func ConnectDB(dbUri string) *mongo.Client {
