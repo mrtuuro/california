@@ -69,7 +69,6 @@ func (mw loggingMiddleware) UpdateUserInfo(ctx context.Context, user *model.User
 		mw.logger.Log(
 			"method", "UpdateUserInfo",
 			"took", time.Since(begin),
-			"id", user.ID,
 			"email", user.Email,
 			"err", err)
 	}(time.Now())

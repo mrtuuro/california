@@ -27,6 +27,26 @@ func LoggingMiddleware(logger log.Logger) Middleware {
 	}
 }
 
+func (mw loggingMiddleware) ListBrands(ctx context.Context) (brands []string, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ListBrands",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.ListBrands(ctx)
+}
+
+func (mw loggingMiddleware) ListSockets(ctx context.Context) (sockets []*model.Socket, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ListSockets",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.ListSockets(ctx)
+}
+
 func (mw loggingMiddleware) StationRegister(ctx context.Context, station *model.Station) (insertedStation *model.Station, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
@@ -125,6 +145,22 @@ func (aw authMiddleware) SearchStation(ctx context.Context, brandName string) (s
 		return nil, e
 	}
 	return aw.next.SearchStation(ctx, brandName)
+}
+
+func (aw authMiddleware) ListBrands(ctx context.Context) (brands []string, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.ListBrands(ctx)
+}
+
+func (aw authMiddleware) ListSockets(ctx context.Context) (sockets []*model.Socket, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.ListSockets(ctx)
 }
 
 func AuthMiddleware(signingKey string) Middleware {

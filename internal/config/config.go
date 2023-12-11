@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -17,12 +17,13 @@ type Config struct {
 
 	UsersHttpAddr    string
 	StationsHttpAddr string
+	AuthHttpAddr     string
 }
 
 func NewConfig() *Config {
 	err := godotenv.Load("./dev.env")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		fmt.Println("Error loading .env file")
 	}
 	return &Config{
 		MongoDBUri:             os.Getenv("MONGO_DB_CONNECTION_URI"),
@@ -33,6 +34,7 @@ func NewConfig() *Config {
 
 		UsersHttpAddr:    os.Getenv("USER_HTTP_ADDRESS"),
 		StationsHttpAddr: os.Getenv("STATIONS_HTTP_ADDRESS"),
+		AuthHttpAddr:     os.Getenv("AUTH_HTTP_ADDRESS"),
 	}
 
 }

@@ -27,6 +27,8 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	// PUT /station?id=<stationId> updates the station info.
 	// DELETE /station?id=<stationId> deletes the station.
 	// GEt /station/search?brand=<brandName> searches for a station by brand name.
+	// GET /station/brands lists all the brands.
+	// GET /sockets lists all the sockets.
 
 	r.Methods("POST").Path("/station").Handler(httptransport.NewServer(
 		e.StationRegisterEndpoint,
@@ -58,11 +60,51 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 		encodeResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/station/brands").Handler(httptransport.NewServer(
+		e.ListBrandsEndpoint,
+		decodeListBrandsRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/sockets").Handler(httptransport.NewServer(
+		e.ListSocketsEndpoint,
+		decodeListSocketsRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
 }
 
 type errorer interface {
 	error() error
+}
+
+func decodeListSocketsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req listSocketsRequest
+	req.Context = c
+	return req, nil
+}
+
+func decodeListBrandsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req listBrandsRequest
+	req.Context = c
+	return req, nil
 }
 
 func decodeSearchStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {

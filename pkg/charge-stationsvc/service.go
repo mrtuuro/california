@@ -15,6 +15,8 @@ type StationService interface {
 	UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error)
 	RemoveStation(ctx context.Context, stationId string) (err error)
 	SearchStation(ctx context.Context, brandName string) (stations []*model.Station, err error)
+	ListBrands(ctx context.Context) (brands []string, err error)
+	ListSockets(ctx context.Context) (sockets []*model.Socket, err error)
 }
 
 type chargeStationService struct {
@@ -22,11 +24,21 @@ type chargeStationService struct {
 }
 
 func (s *chargeStationService) StationRegister(ctx context.Context, station *model.Station) (*model.Station, error) {
-	oidStr := primitive.NewObjectID().Hex()
-	station.ID, _ = primitive.ObjectIDFromHex(oidStr)
 	insertedStation, err := s.store.InsertStation(ctx, station)
 	if err != nil {
 		return nil, err
+	}
+
+	// We gather all the sockets from the station and insert them into the database.
+	var socketList []model.Socket
+	for _, socket := range station.Sockets {
+		socketList = append(socketList, socket)
+	}
+	for _, socket := range socketList {
+		err = s.store.InsertSocket(ctx, &socket)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return insertedStation, nil
 }
@@ -62,6 +74,42 @@ func (s *chargeStationService) SearchStation(ctx context.Context, brandName stri
 		return nil, err
 	}
 	return stations, nil
+}
+
+func (s *chargeStationService) ListBrands(ctx context.Context) (brands []string, err error) {
+	allStations, err := s.store.GetAllStations(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var allBrandsWithDuplicates []string
+	for _, station := range allStations {
+		allBrandsWithDuplicates = append(allBrandsWithDuplicates, station.Brand)
+	}
+
+	brands = removeDuplicates(allBrandsWithDuplicates)
+
+	return brands, nil
+}
+
+func (s *chargeStationService) ListSockets(ctx context.Context) (sockets []*model.Socket, err error) {
+	sockets, err = s.store.ListSockets(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return sockets, nil
+}
+
+func removeDuplicates(duplicates []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range duplicates {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
 
 func NewStationService(store repository.Store) StationService {

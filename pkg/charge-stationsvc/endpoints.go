@@ -18,6 +18,8 @@ type StationEndpoints struct {
 	UpdateStationInfoEndpoint endpoint.Endpoint
 	RemoveStationEndpoint     endpoint.Endpoint
 	SearchStationEndpoint     endpoint.Endpoint
+	ListBrandsEndpoint        endpoint.Endpoint
+	ListSocketsEndpoint       endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
@@ -27,8 +29,77 @@ func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 		UpdateStationInfoEndpoint: MakeUpdateStationInfoEndpoint(c, s),
 		RemoveStationEndpoint:     MakeRemoveStationEndpoint(c, s),
 		SearchStationEndpoint:     MakeSearchStationEndpoint(c, s),
+		ListBrandsEndpoint:        MakeListBrandsEndpoint(c, s),
+		ListSocketsEndpoint:       MakeListSocketsEndpoint(c, s),
 	}
 }
+
+func MakeListSocketsEndpoint(c context.Context, s StationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(listSocketsRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+
+		sockets, e := s.ListSockets(c)
+		if e != nil {
+			return listSocketsResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: listSocketsResponse{
+				Sockets: sockets,
+				Err:     e,
+			},
+		}, nil
+	}
+}
+
+type listSocketsRequest struct {
+	Context context.Context
+}
+type listSocketsResponse struct {
+	*BaseResponse
+	Sockets []*model.Socket `json:"sockets,omitempty"`
+	Err     error           `json:"err,omitempty"`
+}
+
+func (r listSocketsResponse) Failed() error { return r.Err }
+
+func MakeListBrandsEndpoint(c context.Context, s StationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(listBrandsRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+
+		brands, e := s.ListBrands(c)
+		if e != nil {
+			return listBrandsResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: listBrandsResponse{
+				Brands: brands,
+				Err:    e,
+			},
+		}, nil
+	}
+}
+
+type listBrandsRequest struct {
+	Context context.Context
+}
+
+type listBrandsResponse struct {
+	*BaseResponse
+	Brands []string `json:"brands,omitempty"`
+	Err    error    `json:"err,omitempty"`
+}
+
+func (r listBrandsResponse) Failed() error { return r.Err }
 
 func MakeRegisterStationEndpoint(c context.Context, s StationService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {
@@ -54,6 +125,7 @@ func MakeRegisterStationEndpoint(c context.Context, s StationService) endpoint.E
 type registerStationRequest struct {
 	Context context.Context
 	Station *model.Station
+	Sockets []*model.Socket
 }
 
 type registerStationResponse struct {
