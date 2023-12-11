@@ -20,6 +20,7 @@ type StationEndpoints struct {
 	SearchStationEndpoint     endpoint.Endpoint
 	ListBrandsEndpoint        endpoint.Endpoint
 	ListSocketsEndpoint       endpoint.Endpoint
+	FilterStationsEndpoint    endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
@@ -31,8 +32,46 @@ func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 		SearchStationEndpoint:     MakeSearchStationEndpoint(c, s),
 		ListBrandsEndpoint:        MakeListBrandsEndpoint(c, s),
 		ListSocketsEndpoint:       MakeListSocketsEndpoint(c, s),
+		FilterStationsEndpoint:    MakeFilterStationsEndpoint(c, s),
 	}
 }
+
+func MakeFilterStationsEndpoint(c context.Context, s StationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(filterStationsRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+
+		stations, e := s.FilterStation(c, req.BrandNames, req.SocketNames, req.CurrentType)
+		if e != nil {
+			return filterStationsResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: filterStationsResponse{
+				Stations: stations,
+				Err:      e,
+			},
+		}, nil
+	}
+}
+
+type filterStationsRequest struct {
+	Context     context.Context
+	BrandNames  []string
+	SocketNames []string
+	CurrentType int
+}
+
+type filterStationsResponse struct {
+	*BaseResponse
+	Stations []*model.Station `json:"stations,omitempty"`
+	Err      error            `json:"err,omitempty"`
+}
+
+func (r filterStationsResponse) Failed() error { return r.Err }
 
 func MakeListSocketsEndpoint(c context.Context, s StationService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {

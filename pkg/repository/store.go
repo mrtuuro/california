@@ -36,6 +36,7 @@ type Store interface {
 	// These are the socket related methods.
 	InsertSocket(ctx context.Context, socket *model.Socket) error
 	ListSockets(ctx context.Context) ([]*model.Socket, error)
+	FilterStations(ctx context.Context, filter bson.M) ([]*model.Station, error)
 }
 
 type MongoStore struct {
@@ -272,6 +273,23 @@ func (s *MongoStore) ListSockets(ctx context.Context) ([]*model.Socket, error) {
 		sockets = append(sockets, &socket)
 	}
 	return sockets, nil
+}
+
+func (s *MongoStore) FilterStations(ctx context.Context, filter bson.M) ([]*model.Station, error) {
+	var stations []*model.Station
+	cursor, err := s.StationsColl.Find(context.Background(), filter)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(context.Background())
+	for cursor.Next(context.Background()) {
+		var station model.Station
+		if err := cursor.Decode(&station); err != nil {
+			return nil, err
+		}
+		stations = append(stations, &station)
+	}
+	return stations, nil
 }
 
 func ConnectDB(dbUri string) *mongo.Client {

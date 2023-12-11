@@ -27,6 +27,16 @@ func LoggingMiddleware(logger log.Logger) Middleware {
 	}
 }
 
+func (mw loggingMiddleware) FilterStation(ctx context.Context, brandName []string, socketType []string, currentType int) (stations []*model.Station, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "FilterStation",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.FilterStation(ctx, brandName, socketType, currentType)
+}
+
 func (mw loggingMiddleware) ListBrands(ctx context.Context) (brands []string, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
@@ -161,6 +171,14 @@ func (aw authMiddleware) ListSockets(ctx context.Context) (sockets []*model.Sock
 		return nil, e
 	}
 	return aw.next.ListSockets(ctx)
+}
+
+func (aw authMiddleware) FilterStation(ctx context.Context, brandName []string, socketType []string, currentType int) (stations []*model.Station, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.FilterStation(ctx, brandName, socketType, currentType)
 }
 
 func AuthMiddleware(signingKey string) Middleware {

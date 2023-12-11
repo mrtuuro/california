@@ -17,6 +17,7 @@ type StationService interface {
 	SearchStation(ctx context.Context, brandName string) (stations []*model.Station, err error)
 	ListBrands(ctx context.Context) (brands []string, err error)
 	ListSockets(ctx context.Context) (sockets []*model.Socket, err error)
+	FilterStation(ctx context.Context, brandName []string, socketType []string, currentType int) (stations []*model.Station, err error)
 }
 
 type chargeStationService struct {
@@ -98,6 +99,61 @@ func (s *chargeStationService) ListSockets(ctx context.Context) (sockets []*mode
 		return nil, err
 	}
 	return sockets, nil
+}
+
+func (s *chargeStationService) FilterStation(ctx context.Context, brandNames []string, socketNames []string, currentType int) (stations []*model.Station, err error) {
+
+	filter := bson.M{}
+
+	// Brand name'e göre filtreleme
+	if len(brandNames) > 0 {
+		filter["Brand"] = bson.M{
+			"$in": brandNames,
+		}
+	}
+
+	// socketNames'e göre filtreleme
+	if len(socketNames) > 0 {
+		filter["Sockets"] = bson.M{
+			"$elemMatch": bson.M{
+				"Name": bson.M{
+					"$in": socketNames,
+				},
+			},
+		}
+	}
+
+	// currentType'a göre filtreleme
+	if currentType == 0 || currentType == 1 {
+		if elemMatch, ok := filter["Sockets"].(bson.M); ok {
+			elemMatch["$elemMatch"].(bson.M)["CurrentType"] = currentType
+		} else {
+			filter["Sockets"] = bson.M{
+				"$elemMatch": bson.M{
+					"CurrentType": currentType,
+				},
+			}
+		}
+	}
+
+	//filter := bson.M{
+	//	"Brand": bson.M{
+	//		"$in": brandNames, // birden fazla brandName kabul et
+	//	},
+	//	"Sockets": bson.M{
+	//		"$elemMatch": bson.M{
+	//			"Name": bson.M{
+	//				"$in": socketNames, // birden fazla socketName kabul et
+	//			},
+	//			"CurrentType": currentType,
+	//		},
+	//	},
+	//}
+	stations, err = s.store.FindStationByFilter(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	return stations, nil
 }
 
 func removeDuplicates(duplicates []string) []string {

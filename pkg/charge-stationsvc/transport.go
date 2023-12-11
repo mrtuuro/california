@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"california/pkg/usersvc"
@@ -29,6 +30,7 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	// GEt /station/search?brand=<brandName> searches for a station by brand name.
 	// GET /station/brands lists all the brands.
 	// GET /sockets lists all the sockets.
+	// GET /station/filter?brand=<brandName>&socket=<socketName>&current=<currentType> filters the stations by brand, socket and current type.
 
 	r.Methods("POST").Path("/station").Handler(httptransport.NewServer(
 		e.StationRegisterEndpoint,
@@ -72,11 +74,35 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 		encodeResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/station/filter").Handler(httptransport.NewServer(
+		e.FilterStationsEndpoint,
+		decodeFilterStationsRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
 }
 
 type errorer interface {
 	error() error
+}
+
+func decodeFilterStationsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req filterStationsRequest
+	req.Context = c
+	req.BrandNames = r.URL.Query()["brand"]
+	req.SocketNames = r.URL.Query()["socket"]
+	req.CurrentType, _ = strconv.Atoi(r.URL.Query().Get("current"))
+	return req, nil
 }
 
 func decodeListSocketsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
