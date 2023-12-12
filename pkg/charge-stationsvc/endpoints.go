@@ -15,6 +15,7 @@ type BaseResponse struct {
 type StationEndpoints struct {
 	StationRegisterEndpoint   endpoint.Endpoint
 	GetAllStationsEndpoint    endpoint.Endpoint
+	GetStationEndpoint        endpoint.Endpoint
 	UpdateStationInfoEndpoint endpoint.Endpoint
 	RemoveStationEndpoint     endpoint.Endpoint
 	SearchStationEndpoint     endpoint.Endpoint
@@ -27,6 +28,7 @@ func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 	return StationEndpoints{
 		StationRegisterEndpoint:   MakeRegisterStationEndpoint(c, s),
 		GetAllStationsEndpoint:    MakeGetAllStationsEndpoint(c, s),
+		GetStationEndpoint:        MakeGetStationEndpoint(c, s),
 		UpdateStationInfoEndpoint: MakeUpdateStationInfoEndpoint(c, s),
 		RemoveStationEndpoint:     MakeRemoveStationEndpoint(c, s),
 		SearchStationEndpoint:     MakeSearchStationEndpoint(c, s),
@@ -35,6 +37,42 @@ func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 		FilterStationsEndpoint:    MakeFilterStationsEndpoint(c, s),
 	}
 }
+
+func MakeGetStationEndpoint(c context.Context, s StationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(getStationRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+
+		stationId := req.Context.Value("stationId").(string)
+
+		station, e := s.GetStation(c, stationId)
+		if e != nil {
+			return getStationResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: getStationResponse{
+				Station: station,
+				Err:     e,
+			},
+		}, nil
+	}
+}
+
+type getStationRequest struct {
+	Context context.Context
+}
+
+type getStationResponse struct {
+	*BaseResponse
+	Station *model.Station `json:"station,omitempty"`
+	Err     error          `json:"err,omitempty"`
+}
+
+func (r getStationResponse) Failed() error { return r.Err }
 
 func MakeFilterStationsEndpoint(c context.Context, s StationService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {

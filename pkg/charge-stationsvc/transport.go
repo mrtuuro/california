@@ -25,6 +25,7 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 
 	// POST /station adds a new station to the database.
 	// GET /stations lists all the stations.
+	// GET /station?id=<stationId> gets a station by id.
 	// PUT /station?id=<stationId> updates the station info.
 	// DELETE /station?id=<stationId> deletes the station.
 	// GEt /station/search?brand=<brandName> searches for a station by brand name.
@@ -80,11 +81,33 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 		encodeResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/station").Handler(httptransport.NewServer(
+		e.GetStationEndpoint,
+		decodeGetStationRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
 }
 
 type errorer interface {
 	error() error
+}
+
+func decodeGetStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+	stationId := r.URL.Query().Get("id")
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	c = context.WithValue(c, "stationId", stationId)
+	var req getStationRequest
+	req.Context = c
+	return req, nil
 }
 
 func decodeFilterStationsRequest(ctx context.Context, r *http.Request) (interface{}, error) {

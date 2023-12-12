@@ -12,6 +12,7 @@ import (
 type StationService interface {
 	StationRegister(context.Context, *model.Station) (insertedStation *model.Station, err error)
 	GetStations(context.Context) (stations []*model.Station, err error)
+	GetStation(ctx context.Context, stationId string) (station *model.Station, err error)
 	UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error)
 	RemoveStation(ctx context.Context, stationId string) (err error)
 	SearchStation(ctx context.Context, brandName string) (stations []*model.Station, err error)
@@ -50,6 +51,14 @@ func (s *chargeStationService) GetStations(ctx context.Context) ([]*model.Statio
 		return nil, err
 	}
 	return stations, nil
+}
+
+func (s *chargeStationService) GetStation(ctx context.Context, stationId string) (station *model.Station, err error) {
+	station, err = s.store.GetStationById(ctx, stationId)
+	if err != nil {
+		return nil, err
+	}
+	return station, nil
 }
 
 func (s *chargeStationService) UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error) {

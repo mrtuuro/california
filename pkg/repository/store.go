@@ -28,6 +28,7 @@ type Store interface {
 
 	// These are the station related methods.
 	InsertStation(ctx context.Context, station *model.Station) (*model.Station, error)
+	GetStationById(ctx context.Context, stationId string) (*model.Station, error)
 	GetAllStations(ctx context.Context) ([]*model.Station, error)
 	UpdateStationInfo(ctx context.Context, station *model.Station, stationdId string) error
 	DeleteStation(ctx context.Context, stationId string) error
@@ -273,6 +274,19 @@ func (s *MongoStore) ListSockets(ctx context.Context) ([]*model.Socket, error) {
 		sockets = append(sockets, &socket)
 	}
 	return sockets, nil
+}
+
+func (s *MongoStore) GetStationById(ctx context.Context, stationId string) (*model.Station, error) {
+	var station model.Station
+	oid, _ := primitive.ObjectIDFromHex(stationId)
+	filter := bson.M{"_id": oid}
+	err := s.StationsColl.FindOne(context.Background(), filter).Decode(&station)
+	if err != nil && errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, mongo.ErrNoDocuments
+	} else if err != nil {
+		return nil, err
+	}
+	return &station, nil
 }
 
 func (s *MongoStore) FilterStations(ctx context.Context, filter bson.M) ([]*model.Station, error) {

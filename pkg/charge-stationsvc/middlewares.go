@@ -37,6 +37,17 @@ func (mw loggingMiddleware) FilterStation(ctx context.Context, brandName []strin
 	return mw.next.FilterStation(ctx, brandName, socketType, currentType)
 }
 
+func (mw loggingMiddleware) GetStation(ctx context.Context, stationId string) (station *model.Station, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetStation",
+			"station_id", stationId,
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.GetStation(ctx, stationId)
+}
+
 func (mw loggingMiddleware) ListBrands(ctx context.Context) (brands []string, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
@@ -179,6 +190,14 @@ func (aw authMiddleware) FilterStation(ctx context.Context, brandName []string, 
 		return nil, e
 	}
 	return aw.next.FilterStation(ctx, brandName, socketType, currentType)
+}
+
+func (aw authMiddleware) GetStation(ctx context.Context, stationId string) (station *model.Station, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.GetStation(ctx, stationId)
 }
 
 func AuthMiddleware(signingKey string) Middleware {
