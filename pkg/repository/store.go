@@ -174,6 +174,7 @@ func (s *MongoStore) FindUsersByFilter(ctx context.Context, filter bson.M) ([]*m
 
 func (s *MongoStore) InsertStation(ctx context.Context, station *model.Station) (*model.Station, error) {
 	var insertedStation *model.Station
+
 	insertRes, err := s.StationsColl.InsertOne(ctx, station)
 	if err != nil {
 		return nil, err

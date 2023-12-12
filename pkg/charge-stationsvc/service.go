@@ -26,22 +26,23 @@ type chargeStationService struct {
 }
 
 func (s *chargeStationService) StationRegister(ctx context.Context, station *model.Station) (*model.Station, error) {
+	for i := range station.Sockets {
+		station.Sockets[i].ID = primitive.NewObjectID()
+	}
+
+	station.ID = primitive.NewObjectID()
 	insertedStation, err := s.store.InsertStation(ctx, station)
 	if err != nil {
 		return nil, err
 	}
 
-	// We gather all the sockets from the station and insert them into the database.
-	var socketList []model.Socket
-	for _, socket := range station.Sockets {
-		socketList = append(socketList, socket)
-	}
-	for _, socket := range socketList {
-		err = s.store.InsertSocket(ctx, &socket)
+	for i, _ := range station.Sockets {
+		err = s.store.InsertSocket(ctx, &station.Sockets[i])
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return insertedStation, nil
 }
 
