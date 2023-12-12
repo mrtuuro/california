@@ -8,7 +8,7 @@ station:
 	@go build -o bin/station cmd/charge-station-service/station_srv_main.go
 	@./bin/station
 
-authenticate:
-	@go build -o bin/authenticate cmd/auth-service/auth_svc_main.go
-	@./bin/authenticate
+navi:
+	@go build -o bin/navigation cmd/navigation-service/navigation_svc_main.go
+	@./bin/navigation
 
