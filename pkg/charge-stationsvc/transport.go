@@ -32,6 +32,7 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	// GET /station/brands lists all the brands.
 	// GET /sockets lists all the sockets.
 	// GET /station/filter?brand=<brandName>&socket=<socketName>&current=<currentType> filters the stations by brand, socket and current type.
+	// DEL /socket?id=<socketId> deletes the socket.
 
 	r.Methods("POST").Path("/station").Handler(httptransport.NewServer(
 		e.StationRegisterEndpoint,
@@ -87,11 +88,34 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 		encodeResponse,
 		options...,
 	))
+	r.Methods("DELETE").Path("/socket").Handler(httptransport.NewServer(
+		e.DeleteSocketEndpoint,
+		decodeDeleteSocketRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
 }
 
 type errorer interface {
 	error() error
+}
+
+func decodeDeleteSocketRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	socketId := r.URL.Query().Get("id")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	c = context.WithValue(c, "socketId", socketId)
+	var req deleteSocketRequest
+	req.Context = c
+	req.SocketID = socketId
+	return req, nil
 }
 
 func decodeGetStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {

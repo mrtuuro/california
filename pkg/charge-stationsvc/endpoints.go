@@ -22,6 +22,7 @@ type StationEndpoints struct {
 	ListBrandsEndpoint        endpoint.Endpoint
 	ListSocketsEndpoint       endpoint.Endpoint
 	FilterStationsEndpoint    endpoint.Endpoint
+	DeleteSocketEndpoint      endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
@@ -35,8 +36,42 @@ func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 		ListBrandsEndpoint:        MakeListBrandsEndpoint(c, s),
 		ListSocketsEndpoint:       MakeListSocketsEndpoint(c, s),
 		FilterStationsEndpoint:    MakeFilterStationsEndpoint(c, s),
+		DeleteSocketEndpoint:      MakeDeleteSocketEndpoint(c, s),
 	}
 }
+
+func MakeDeleteSocketEndpoint(c context.Context, s StationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(deleteSocketRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+
+		e := s.DeleteSocket(c, req.SocketID)
+		if e != nil {
+			return deleteSocketResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: deleteSocketResponse{
+				Err: e,
+			},
+		}, nil
+	}
+}
+
+type deleteSocketRequest struct {
+	Context  context.Context
+	SocketID string
+}
+
+type deleteSocketResponse struct {
+	*BaseResponse
+	Err error `json:"err,omitempty"`
+}
+
+func (r deleteSocketResponse) Failed() error { return r.Err }
 
 func MakeGetStationEndpoint(c context.Context, s StationService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {

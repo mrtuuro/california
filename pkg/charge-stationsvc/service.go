@@ -2,11 +2,13 @@ package charge_stationsvc
 
 import (
 	"context"
+	"errors"
 
 	"california/pkg/model"
 	"california/pkg/repository"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type StationService interface {
@@ -15,6 +17,7 @@ type StationService interface {
 	GetStation(ctx context.Context, stationId string) (station *model.Station, err error)
 	UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error)
 	RemoveStation(ctx context.Context, stationId string) (err error)
+	DeleteSocket(ctx context.Context, socketId string) (err error)
 	SearchStation(ctx context.Context, brandName string) (stations []*model.Station, err error)
 	ListBrands(ctx context.Context) (brands []string, err error)
 	ListSockets(ctx context.Context) (sockets []*model.Socket, err error)
@@ -25,25 +28,57 @@ type chargeStationService struct {
 	store repository.Store
 }
 
+func (s *chargeStationService) DeleteSocket(ctx context.Context, socketId string) (err error) {
+	err = s.store.DeleteSocket(ctx, socketId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *chargeStationService) StationRegister(ctx context.Context, station *model.Station) (*model.Station, error) {
+	lat := station.Latitude
+	long := station.Longitude
+
+	locationFilter := bson.M{
+		"Latitude":  lat,
+		"Longitude": long,
+	}
+	existedStations, err := s.store.FindStationByFilter(ctx, locationFilter)
+	if len(existedStations) == 0 || errors.Is(err, mongo.ErrNoDocuments) {
+		for i := range station.Sockets {
+			station.Sockets[i].ID = primitive.NewObjectID()
+		}
+
+		station.ID = primitive.NewObjectID()
+		insertedStation, err := s.store.InsertStation(ctx, station)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, _ := range station.Sockets {
+			err = s.store.InsertSocket(ctx, &station.Sockets[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return insertedStation, nil
+	}
+
 	for i := range station.Sockets {
 		station.Sockets[i].ID = primitive.NewObjectID()
-	}
-
-	station.ID = primitive.NewObjectID()
-	insertedStation, err := s.store.InsertStation(ctx, station)
-	if err != nil {
-		return nil, err
-	}
-
-	for i, _ := range station.Sockets {
 		err = s.store.InsertSocket(ctx, &station.Sockets[i])
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	return insertedStation, nil
+		err := s.store.PushSocketToStation(ctx, existedStations[0], station.Sockets[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return existedStations[0], nil
 }
 
 func (s *chargeStationService) GetStations(ctx context.Context) ([]*model.Station, error) {

@@ -33,6 +33,8 @@ type Store interface {
 	UpdateStationInfo(ctx context.Context, station *model.Station, stationdId string) error
 	DeleteStation(ctx context.Context, stationId string) error
 	FindStationByFilter(ctx context.Context, filter bson.M) ([]*model.Station, error)
+	PushSocketToStation(ctx context.Context, station *model.Station, socket model.Socket) error
+	DeleteSocket(ctx context.Context, socketId string) error
 
 	// These are the socket related methods.
 	InsertSocket(ctx context.Context, socket *model.Socket) error
@@ -305,6 +307,32 @@ func (s *MongoStore) FilterStations(ctx context.Context, filter bson.M) ([]*mode
 		stations = append(stations, &station)
 	}
 	return stations, nil
+}
+
+func (s *MongoStore) PushSocketToStation(ctx context.Context, station *model.Station, socket model.Socket) error {
+	filter := bson.M{"_id": station.ID}
+	update := bson.M{"$push": bson.M{"Sockets": socket}}
+	_, err := s.StationsColl.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *MongoStore) DeleteSocket(ctx context.Context, socketId string) error {
+	oid, _ := primitive.ObjectIDFromHex(socketId)
+	filter := bson.M{"_id": oid}
+	_, err := s.SocketsColl.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return err
+	}
+
+	update := bson.M{"$pull": bson.M{"Sockets": bson.M{"_id": oid}}}
+	_, err = s.StationsColl.UpdateMany(context.TODO(), bson.M{}, update)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return nil
 }
 
 func ConnectDB(dbUri string) *mongo.Client {
