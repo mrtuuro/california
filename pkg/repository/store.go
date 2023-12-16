@@ -210,7 +210,7 @@ func (s *MongoStore) UpdateStationInfo(ctx context.Context, station *model.Stati
 
 	filter := bson.M{"_id": oid}
 	update := bson.M{"$set": bson.M{
-		"Name":        station.Brand,
+		"Brand":       station.Brand,
 		"Latitude":    station.Latitude,
 		"Longitude":   station.Longitude,
 		"Status":      station.Status,
