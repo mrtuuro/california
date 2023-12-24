@@ -7,9 +7,10 @@ RUN go mod download
 
 COPY ./ ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/station cmd/charge-station-service/station_srv_main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/navi cmd/navigation-service/navi_svc_main.go
 
-EXPOSE 3435
+EXPOSE 3436
+
 
 ENV MONGO_DB_CONNECTION_URI=mongodb://roady_admin:To123567@172.31.25.45:27017
 ENV MONGO_DATABASE_NAME=california
@@ -21,4 +22,4 @@ ENV STATIONS_HTTP_ADDRESS=:3435
 ENV NAVIGATION_HTTP_ADDRESS=:3436
 ENV SECRET_KEY=california_secret_key
 
-ENTRYPOINT ["./bin/station"]
+ENTRYPOINT ["./bin/users"]

@@ -64,22 +64,36 @@ func calculateTotalPrice(consumption float64, engineType model.EngineType) float
 
 func calculateFuelConsumption(engineType model.EngineType, engineSize, averageConsumption, distance, speed float64) float64 {
 	// Base speed factor for all engines
-	speedFactor := math.Pow(speed/80, 1.2)
+	//speedFactor := math.Pow(speed/80, 1.2)
+	kilometers := distance / 1000
 
 	// Engine size factor for petrol and diesel engines
-	engineSizeFactor := engineSize / 2.0 // Assuming 2.0 liters as a baseline for comparison
+	//engineSizeFactor := engineSize / 2.0 // Assuming 2.0 liters as a baseline for comparison
+
+	//switch engineType {
+	//case 1:
+	//	return averageConsumption * engineSizeFactor * speedFactor * kilometers / 100
+	//case 2:
+	//	dieselEfficiencyModifier := 0.85
+	//	return averageConsumption * dieselEfficiencyModifier * engineSizeFactor * speedFactor * kilometers / 100
+	//case 3:
+	//	hybridEfficiencyModifier := 0.75
+	//	return averageConsumption * hybridEfficiencyModifier * engineSizeFactor * speedFactor * kilometers / 100
+	//default:
+	//	return averageConsumption * engineSizeFactor * speedFactor * kilometers / 100
+	//}
 
 	switch engineType {
 	case 1:
-		return averageConsumption * engineSizeFactor * speedFactor * distance / 100
+		return averageConsumption * kilometers / 100
 	case 2:
 		dieselEfficiencyModifier := 0.85
-		return averageConsumption * dieselEfficiencyModifier * engineSizeFactor * speedFactor * distance / 100
+		return averageConsumption * dieselEfficiencyModifier * kilometers / 100
 	case 3:
 		hybridEfficiencyModifier := 0.75
-		return averageConsumption * hybridEfficiencyModifier * engineSizeFactor * speedFactor * distance / 100
+		return averageConsumption * hybridEfficiencyModifier * kilometers / 100
 	default:
-		return averageConsumption * engineSizeFactor * speedFactor * distance / 100
+		return averageConsumption * kilometers / 100
 	}
 
 }
