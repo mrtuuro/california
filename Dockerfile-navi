@@ -7,7 +7,7 @@ RUN go mod download
 
 COPY ./ ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o bin/navi cmd/navigation-service/navi_svc_main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/navigation cmd/navigation-service/navigation_svc_main.go
 
 EXPOSE 3436
 
@@ -22,4 +22,4 @@ ENV STATIONS_HTTP_ADDRESS=:3435
 ENV NAVIGATION_HTTP_ADDRESS=:3436
 ENV SECRET_KEY=california_secret_key
 
-ENTRYPOINT ["./bin/navi"]
+ENTRYPOINT ["./bin/navigation"]
