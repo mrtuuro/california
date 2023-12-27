@@ -9,11 +9,13 @@ import (
 
 type Endpoints struct {
 	CalculateTripEndpoint endpoint.Endpoint
+	RecommendEndpoint     endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s NavigationService) Endpoints {
 	return Endpoints{
 		CalculateTripEndpoint: MakeCalculateTripEndpoint(c, s),
+		RecommendEndpoint:     MakeRecommendEndpoint(c, s),
 	}
 }
 
@@ -21,6 +23,41 @@ type BaseResponse struct {
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+func MakeRecommendEndpoint(c context.Context, s NavigationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(model.RecommendRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		advice, e := s.Recommend(c, &req)
+		if e != nil {
+			return BaseResponse{
+				Message: "failed",
+				Data:    nil,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: recommendResponse{
+				Advice: advice,
+				Err:    e,
+			},
+		}, nil
+	}
+}
+
+type recommendRequest struct {
+	Context context.Context
+	Stops   []model.Stop
+}
+
+type recommendResponse struct {
+	*BaseResponse
+	Advice []*model.Advice `json:"recommendations,omitempty"`
+	Err    error
+}
+
+func (r recommendResponse) Failed() error { return r.Err }
 
 func MakeCalculateTripEndpoint(c context.Context, s NavigationService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {

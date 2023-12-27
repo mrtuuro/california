@@ -2,6 +2,7 @@ package navigationsvc
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	"california/pkg/model"
@@ -15,6 +16,7 @@ const (
 
 type NavigationService interface {
 	CalculateTrip(ctx context.Context, req calculateTripRequest) (tripInfo []*model.TripInfo, err error)
+	Recommend(ctx context.Context, req *model.RecommendRequest) (recommendation []*model.Advice, err error)
 }
 
 type navigationService struct {
@@ -25,6 +27,38 @@ func NewNavigationService(store repository.Store) NavigationService {
 	return &navigationService{
 		store: store,
 	}
+}
+
+func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendRequest) (advice []*model.Advice, err error) {
+	allStops := rec.Stops
+	for _, stop := range allStops {
+		fmt.Printf("Stop Name: %s\n", stop.Name)
+		fmt.Printf("Stop Long: %s\n", stop.Long)
+		fmt.Printf("Stop Lat: %s\n", stop.Lat)
+	}
+	advice = append(advice, &model.Advice{
+		Stops: []model.Stop{
+			{
+				Name:  allStops[0].Name,
+				Lat:   allStops[0].Lat,
+				Long:  allStops[0].Long,
+				Color: "red",
+			},
+			{
+				Name:  allStops[3].Name,
+				Lat:   allStops[3].Lat,
+				Long:  allStops[3].Long,
+				Color: "green",
+			},
+			{
+				Name:  allStops[5].Name,
+				Lat:   allStops[5].Lat,
+				Long:  allStops[5].Long,
+				Color: "blue",
+			},
+		},
+	})
+	return advice, nil
 }
 
 func (s *navigationService) CalculateTrip(ctx context.Context, req calculateTripRequest) (tripInfo []*model.TripInfo, err error) {

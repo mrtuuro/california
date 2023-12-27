@@ -3,6 +3,7 @@ package charge_stationsvc
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"california/pkg/model"
 	"california/pkg/repository"
@@ -198,6 +199,7 @@ func (s *chargeStationService) FilterStation(ctx context.Context, brandNames []s
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("filter: ", filter)
 	return stations, nil
 }
 

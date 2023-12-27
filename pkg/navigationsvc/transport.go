@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"california/pkg/model"
 	"california/pkg/usersvc"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/transport"
@@ -24,13 +25,36 @@ func MakeHTTPHandler(c context.Context, s NavigationService, log log.Logger) htt
 	}
 
 	// GET /trip?distance=543 returns the trip information.
+	// POST /recommend returns the recommended stops.
+
 	r.Methods("GET").Path("/trip").Handler(httptransport.NewServer(
 		e.CalculateTripEndpoint,
 		decodeCalculateTripRequest,
 		encodeResponse,
 		options...,
 	))
+	r.Methods("POST").Path("/recommend").Handler(httptransport.NewServer(
+		e.RecommendEndpoint,
+		decodeRecommendRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
+}
+
+func decodeRecommendRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	var req model.RecommendRequest
+	req.Context = context.WithValue(ctx, "jwt", jwtToken)
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 func decodeCalculateTripRequest(ctx context.Context, r *http.Request) (interface{}, error) {
