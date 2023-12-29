@@ -12,17 +12,26 @@ type TripInfo struct {
 }
 
 type Advice struct {
-	Stops []Stop `json:"stops"`
+	Number int    `json:"advice"`
+	Stops  []Stop `json:"stops"`
 }
 
 type RecommendRequest struct {
-	Context context.Context
-	Stops   []Stop `json:"stops"`
+	Context      context.Context
+	Distance     int        `json:"distance"`
+	StartPoint   Coordinate `json:"start_point"`
+	ArrivalPoint Coordinate `json:"arrival_point"`
+	Stops        []Stop     `json:"stops"`
+}
+
+type Coordinate struct {
+	Lat  float64 `json:"lat"`
+	Long float64 `json:"long"`
 }
 
 type Stop struct {
-	Name  string `json:"name"`
-	Lat   string `json:"lat"`
-	Long  string `json:"long"`
-	Color string `json:"color"`
+	Name  string  `json:"name"`
+	Lat   float64 `json:"lat"`
+	Long  float64 `json:"long"`
+	Color string  `json:"color"`
 }

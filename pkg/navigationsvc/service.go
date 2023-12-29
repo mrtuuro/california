@@ -12,11 +12,13 @@ import (
 const (
 	patrolPrice = 33.02
 	dieselPrice = 35.47
+
+	earthRadius = 6371
 )
 
 type NavigationService interface {
 	CalculateTrip(ctx context.Context, req calculateTripRequest) (tripInfo []*model.TripInfo, err error)
-	Recommend(ctx context.Context, req *model.RecommendRequest) (recommendation []*model.Advice, err error)
+	Recommend(ctx context.Context, req *model.RecommendRequest) (advices []*model.Advice, err error)
 }
 
 type navigationService struct {
@@ -29,36 +31,107 @@ func NewNavigationService(store repository.Store) NavigationService {
 	}
 }
 
-func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendRequest) (advice []*model.Advice, err error) {
-	allStops := rec.Stops
+func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendRequest) (advices []*model.Advice, err error) {
+	var (
+		allStops         = rec.Stops
+		startPoint       = rec.StartPoint
+		arrivalPoint     = rec.ArrivalPoint
+		_                = haversineDistance(startPoint.Lat, startPoint.Long, arrivalPoint.Lat, arrivalPoint.Long)
+		realDistance     = rec.Distance
+		startStopDistMap = make(map[string]float64)
+		totalAdviceCount = 3
+	)
+
 	for _, stop := range allStops {
-		fmt.Printf("Stop Name: %s\n", stop.Name)
-		fmt.Printf("Stop Long: %s\n", stop.Long)
-		fmt.Printf("Stop Lat: %s\n", stop.Lat)
+		distBetweenStartAndStop := haversineDistance(startPoint.Lat, startPoint.Long, stop.Lat, stop.Long)
+		startStopDistMap[stop.Name] = distBetweenStartAndStop
+		//startStopDistList = append(startStopDistList, distBetweenStartAndStop)
 	}
-	advice = append(advice, &model.Advice{
-		Stops: []model.Stop{
-			{
-				Name:  allStops[0].Name,
-				Lat:   allStops[0].Lat,
-				Long:  allStops[0].Long,
-				Color: "red",
-			},
-			{
-				Name:  allStops[3].Name,
-				Lat:   allStops[3].Lat,
-				Long:  allStops[3].Long,
-				Color: "green",
-			},
-			{
-				Name:  allStops[5].Name,
-				Lat:   allStops[5].Lat,
-				Long:  allStops[5].Long,
-				Color: "blue",
-			},
-		},
-	})
-	return advice, nil
+	//sort.Float64s(startStopDistList)
+
+	// Kaç tane durak önerilecek?
+	// Yaklaşık her 300 km'de 1 tane durak önerilecek.
+	// Eğer toplam yol 600 km ise 1 durak önerilecek. Ve 300 300 artarak gidecek
+	// İlk kontrol edilecek durak 200 km'den uzak olmalı. 200 km'den uzak olan duraklar arasından en yakın olanı seçilecek.
+	// Eğer toplam yol 0-600 km arasındaysa 1 durak önerilecek. Ve bu durak yaklaşık %50lik kısımda olacak. +- 5km.
+	totalStopCount := int(float64(realDistance / 300))
+	if realDistance <= 650 {
+		totalStopCount = 1
+	}
+
+	if totalStopCount == 1 {
+		for i := 0; i < totalAdviceCount; i++ {
+			var advice model.Advice
+			advice.Number = i + 1
+			stopPoint := realDistance / 2
+			fmt.Println(stopPoint)
+			for stopName, dist := range startStopDistMap {
+				if dist > float64(stopPoint-5) && dist < float64(stopPoint+5) {
+					fmt.Println("advice : ", stopName)
+					fmt.Println("stop distance: ", dist)
+					for _, stop := range allStops {
+						if stop.Name == stopName {
+							advice.Stops = append(advice.Stops, model.Stop{
+								Name:  stopName,
+								Lat:   stop.Lat,
+								Long:  stop.Long,
+								Color: "red",
+							})
+						}
+					}
+					break
+				}
+			}
+			advices = append(advices, &advice)
+		}
+		return advices, nil
+	}
+
+	for i := 1; i <= totalStopCount; i++ {
+		stopPoint := 230 * i
+		fmt.Println(stopPoint)
+		for j := 1; j <= totalAdviceCount; j++ {
+			var advice model.Advice
+			for stopName, dist := range startStopDistMap {
+				if dist > float64(stopPoint-5) && dist < float64(stopPoint+5) {
+					fmt.Println("advice : ", stopName)
+					fmt.Println("stop distance: ", dist)
+					for _, stop := range allStops {
+						if stop.Name == stopName {
+							advice.Stops = append(advice.Stops, model.Stop{
+								Name:  stopName,
+								Lat:   stop.Lat,
+								Long:  stop.Long,
+								Color: "red",
+							})
+						}
+					}
+					break
+				}
+			}
+			advices = append(advices, &advice)
+		}
+	}
+	return advices, nil
+}
+
+func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	// convert to radians
+	lat1 = degreesToRadians(lat1)
+	lon1 = degreesToRadians(lon1)
+	lat2 = degreesToRadians(lat2)
+	lon2 = degreesToRadians(lon2)
+
+	// calculate haversine
+	lat := lat2 - lat1
+	lon := lon2 - lon1
+	a := math.Pow(math.Sin(lat/2), 2) + math.Cos(lat1)*math.Cos(lat2)*math.Pow(math.Sin(lon/2), 2)
+	c := 2 * math.Asin(math.Sqrt(a))
+	return earthRadius * c
+}
+
+func degreesToRadians(degrees float64) float64 {
+	return degrees * math.Pi / 180
 }
 
 func (s *navigationService) CalculateTrip(ctx context.Context, req calculateTripRequest) (tripInfo []*model.TripInfo, err error) {

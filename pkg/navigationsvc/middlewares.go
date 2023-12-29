@@ -37,7 +37,7 @@ func (mw loggingMiddleware) CalculateTrip(c context.Context, req calculateTripRe
 	return mw.next.CalculateTrip(c, req)
 }
 
-func (mw loggingMiddleware) Recommend(c context.Context, req *model.RecommendRequest) (recommendation []*model.Advice, err error) {
+func (mw loggingMiddleware) Recommend(c context.Context, req *model.RecommendRequest) (advices []*model.Advice, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
 			"method", "Recommend",
@@ -61,7 +61,7 @@ func (aw authMiddleware) CalculateTrip(ctx context.Context, req calculateTripReq
 	return aw.next.CalculateTrip(ctx, req)
 }
 
-func (aw authMiddleware) Recommend(ctx context.Context, req *model.RecommendRequest) (recommendation []*model.Advice, err error) {
+func (aw authMiddleware) Recommend(ctx context.Context, req *model.RecommendRequest) (advices []*model.Advice, err error) {
 	ctx, e := isAuthenticated(ctx, aw.signingKey)
 	if e != nil {
 		return nil, e
