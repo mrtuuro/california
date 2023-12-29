@@ -60,26 +60,58 @@ func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendR
 	}
 
 	if totalStopCount == 1 {
+		fmt.Println(startStopDistMap)
 		for i := 0; i < totalAdviceCount; i++ {
 			var advice model.Advice
 			advice.Number = i + 1
 			stopPoint := realDistance / 2
-			fmt.Println(stopPoint)
-			for stopName, dist := range startStopDistMap {
-				if dist > float64(stopPoint-5) && dist < float64(stopPoint+5) {
-					fmt.Println("advice : ", stopName)
-					fmt.Println("stop distance: ", dist)
-					for _, stop := range allStops {
-						if stop.Name == stopName {
-							advice.Stops = append(advice.Stops, model.Stop{
-								Name:  stopName,
-								Lat:   stop.Lat,
-								Long:  stop.Long,
-								Color: "red",
-							})
+			increment := 10
+
+			//for stopName, dist := range startStopDistMap {
+			//	if dist > float64(stopPoint-15) && dist < float64(stopPoint+15) {
+			//		for _, stop := range allStops {
+			//			if stop.Name == stopName {
+			//				advice.Stops = append(advice.Stops, model.Stop{
+			//					Name:  stopName,
+			//					Lat:   stop.Lat,
+			//					Long:  stop.Long,
+			//					Color: "red",
+			//				})
+			//			}
+			//		}
+			//		break
+			//	}
+			//}
+			for {
+				found := false
+				for stopName, dist := range startStopDistMap {
+					if dist > float64(stopPoint-increment) && dist < float64(stopPoint+increment) {
+						for _, stop := range allStops {
+							if stop.Name == stopName {
+								advice.Stops = append(advice.Stops, model.Stop{
+									Name:  stopName,
+									Lat:   stop.Lat,
+									Long:  stop.Long,
+									Color: "red",
+								})
+								found = true // Durak bulundu.
+								break        // İç döngüyü kır.
+							}
 						}
 					}
-					break
+					if found {
+						break // Dış döngüyü kır.
+					}
+				}
+
+				if found {
+					break // Durak bulundu, ana döngüyü kır.
+				} else {
+					increment += 10     // Durak bulunamadı, aralığı genişlet.
+					if increment > 50 { // Maksimum aralığa ulaştıysa döngüyü sonlandır.
+						fmt.Println("Maksimum aralık aşıldı, durak bulunamadı.")
+						break
+					}
 				}
 			}
 			advices = append(advices, &advice)
@@ -88,25 +120,58 @@ func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendR
 	}
 
 	for i := 1; i <= totalStopCount; i++ {
-		stopPoint := 230 * i
-		fmt.Println(stopPoint)
+		stopPoint := 300 * i
 		for j := 1; j <= totalAdviceCount; j++ {
 			var advice model.Advice
-			for stopName, dist := range startStopDistMap {
-				if dist > float64(stopPoint-5) && dist < float64(stopPoint+5) {
-					fmt.Println("advice : ", stopName)
-					fmt.Println("stop distance: ", dist)
-					for _, stop := range allStops {
-						if stop.Name == stopName {
-							advice.Stops = append(advice.Stops, model.Stop{
-								Name:  stopName,
-								Lat:   stop.Lat,
-								Long:  stop.Long,
-								Color: "red",
-							})
+			advice.Number = j
+			increment := 10
+
+			//for stopName, dist := range startStopDistMap {
+			//	if dist > float64(stopPoint-20) && dist < float64(stopPoint+20) {
+			//		fmt.Println(stopName, dist)
+			//		for _, stop := range allStops {
+			//			if stop.Name == stopName {
+			//				advice.Stops = append(advice.Stops, model.Stop{
+			//					Name:  stopName,
+			//					Lat:   stop.Lat,
+			//					Long:  stop.Long,
+			//					Color: "red",
+			//				})
+			//			}
+			//		}
+			//		break
+			//	}
+			//}
+			for {
+				found := false
+				for stopName, dist := range startStopDistMap {
+					if dist > float64(stopPoint-increment) && dist < float64(stopPoint+increment) {
+						for _, stop := range allStops {
+							if stop.Name == stopName {
+								advice.Stops = append(advice.Stops, model.Stop{
+									Name:  stopName,
+									Lat:   stop.Lat,
+									Long:  stop.Long,
+									Color: "red",
+								})
+								found = true // Durak bulundu.
+								break        // İç döngüyü kır.
+							}
 						}
 					}
-					break
+					if found {
+						break // Dış döngüyü kır.
+					}
+				}
+
+				if found {
+					break // Durak bulundu, ana döngüyü kır.
+				} else {
+					increment += 10     // Durak bulunamadı, aralığı genişlet.
+					if increment > 50 { // Maksimum aralığa ulaştıysa döngüyü sonlandır.
+						fmt.Println("Maksimum aralık aşıldı, durak bulunamadı.")
+						break
+					}
 				}
 			}
 			advices = append(advices, &advice)
