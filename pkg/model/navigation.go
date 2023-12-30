@@ -35,3 +35,19 @@ type Stop struct {
 	Long  float64 `json:"long"`
 	Color string  `json:"color"`
 }
+
+func (s *Stop) DetermineColor(increment int) {
+	if increment == 10 {
+		s.Color = "green"
+	} else if increment == 20 {
+		s.Color = "blue"
+	} else if increment == 30 {
+		s.Color = "red"
+	} else if increment == 40 {
+		s.Color = "red"
+	} else if increment == 50 {
+		s.Color = "red"
+	} else {
+		s.Color = "red"
+	}
+}

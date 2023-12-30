@@ -2,7 +2,6 @@ package navigationsvc
 
 import (
 	"context"
-	"fmt"
 	"math"
 
 	"california/pkg/model"
@@ -60,7 +59,6 @@ func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendR
 	}
 
 	if totalStopCount == 1 {
-		fmt.Println(startStopDistMap)
 		for i := 0; i < totalAdviceCount; i++ {
 			var advice model.Advice
 			advice.Number = i + 1
@@ -88,28 +86,27 @@ func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendR
 					if dist > float64(stopPoint-increment) && dist < float64(stopPoint+increment) {
 						for _, stop := range allStops {
 							if stop.Name == stopName {
-								advice.Stops = append(advice.Stops, model.Stop{
-									Name:  stopName,
-									Lat:   stop.Lat,
-									Long:  stop.Long,
-									Color: "red",
-								})
-								found = true // Durak bulundu.
-								break        // İç döngüyü kır.
+								dStop := model.Stop{
+									Name: stopName,
+									Lat:  stop.Lat,
+									Long: stop.Long,
+								}
+								dStop.DetermineColor(increment)
+								advice.Stops = append(advice.Stops, dStop)
+								found = true
+								break
 							}
 						}
 					}
 					if found {
-						break // Dış döngüyü kır.
+						break
 					}
 				}
-
 				if found {
-					break // Durak bulundu, ana döngüyü kır.
+					break
 				} else {
-					increment += 10     // Durak bulunamadı, aralığı genişlet.
-					if increment > 50 { // Maksimum aralığa ulaştıysa döngüyü sonlandır.
-						fmt.Println("Maksimum aralık aşıldı, durak bulunamadı.")
+					increment += 10
+					if increment > 50 {
 						break
 					}
 				}
@@ -148,28 +145,28 @@ func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendR
 					if dist > float64(stopPoint-increment) && dist < float64(stopPoint+increment) {
 						for _, stop := range allStops {
 							if stop.Name == stopName {
-								advice.Stops = append(advice.Stops, model.Stop{
-									Name:  stopName,
-									Lat:   stop.Lat,
-									Long:  stop.Long,
-									Color: "red",
-								})
-								found = true // Durak bulundu.
-								break        // İç döngüyü kır.
+								dStop := model.Stop{
+									Name: stopName,
+									Lat:  stop.Lat,
+									Long: stop.Long,
+								}
+								dStop.DetermineColor(increment)
+								advice.Stops = append(advice.Stops, dStop)
+								found = true
+								break
 							}
 						}
 					}
 					if found {
-						break // Dış döngüyü kır.
+						break
 					}
 				}
 
 				if found {
-					break // Durak bulundu, ana döngüyü kır.
+					break
 				} else {
-					increment += 10     // Durak bulunamadı, aralığı genişlet.
-					if increment > 50 { // Maksimum aralığa ulaştıysa döngüyü sonlandır.
-						fmt.Println("Maksimum aralık aşıldı, durak bulunamadı.")
+					increment += 10
+					if increment > 50 {
 						break
 					}
 				}
@@ -177,6 +174,7 @@ func (s *navigationService) Recommend(ctx context.Context, rec *model.RecommendR
 			advices = append(advices, &advice)
 		}
 	}
+
 	return advices, nil
 }
 
@@ -235,39 +233,28 @@ func calculateTotalPrice(consumption float64, engineType model.EngineType) float
 }
 
 func calculateFuelConsumption(engineType model.EngineType, engineSize, averageConsumption, distance, speed float64) float64 {
-	// Base speed factor for all engines
-	//speedFactor := math.Pow(speed/80, 1.2)
+	//Base speed factor for all engines
+	speedFactor := math.Pow(speed/100, 1.2)
 	kilometers := distance / 1000
 
-	// Engine size factor for petrol and diesel engines
-	//engineSizeFactor := engineSize / 2.0 // Assuming 2.0 liters as a baseline for comparison
-
-	//switch engineType {
-	//case 1:
-	//	return averageConsumption * engineSizeFactor * speedFactor * kilometers / 100
-	//case 2:
-	//	dieselEfficiencyModifier := 0.85
-	//	return averageConsumption * dieselEfficiencyModifier * engineSizeFactor * speedFactor * kilometers / 100
-	//case 3:
-	//	hybridEfficiencyModifier := 0.75
-	//	return averageConsumption * hybridEfficiencyModifier * engineSizeFactor * speedFactor * kilometers / 100
-	//default:
-	//	return averageConsumption * engineSizeFactor * speedFactor * kilometers / 100
-	//}
+	//Engine size factor for petrol and diesel engines
+	engineSizeFactor := engineSize * 0.6
+	if kilometers < 300 {
+		engineSizeFactor = engineSize * 0.8
+	}
 
 	switch engineType {
 	case 1:
-		return averageConsumption * kilometers / 100
+		return averageConsumption * engineSizeFactor * speedFactor * kilometers / 100
 	case 2:
 		dieselEfficiencyModifier := 0.85
-		return averageConsumption * dieselEfficiencyModifier * kilometers / 100
+		return averageConsumption * dieselEfficiencyModifier * engineSizeFactor * speedFactor * kilometers / 100
 	case 3:
 		hybridEfficiencyModifier := 0.75
-		return averageConsumption * hybridEfficiencyModifier * kilometers / 100
+		return averageConsumption * hybridEfficiencyModifier * engineSizeFactor * speedFactor * kilometers / 100
 	default:
-		return averageConsumption * kilometers / 100
+		return averageConsumption * engineSizeFactor * speedFactor * kilometers / 100
 	}
-
 }
 
 func roundResult(result float64) float64 {
