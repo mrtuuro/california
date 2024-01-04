@@ -29,6 +29,7 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger) http.Hand
 	// PUT /vehicle updates the vehicle's information.
 	// GET /users returns all users.
 	// GET /users/search returns users by their name.
+	// DEL /user deletes a user.
 
 	r.Methods("POST").Path("/register").Handler(httptransport.NewServer(
 		e.RegisterEndpoint,
@@ -78,7 +79,26 @@ func MakeHTTPHandler(c context.Context, s UserService, log log.Logger) http.Hand
 		encodeResponse,
 		options...,
 	))
+	r.Methods("DELETE").Path("/user").Handler(httptransport.NewServer(
+		e.DeleteUser,
+		decodeDeleteUserRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
+}
+
+func decodeDeleteUserRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, ErrNoAuthTokenHeader
+	}
+	ctx = context.WithValue(ctx, "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req deleteUserRequest
+	req.Context = c
+	return req, nil
 }
 
 func decodeSearchUsersRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -88,13 +108,10 @@ func decodeSearchUsersRequest(ctx context.Context, r *http.Request) (interface{}
 		return nil, ErrNoAuthTokenHeader
 	}
 
-	name := r.URL.Query().Get("name")
-
 	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
 	c := context.WithValue(r.Context(), "jwt", jwtToken)
-	var req searchUsersRequest
+	var req deleteUserRequest
 	req.Context = c
-	req.Name = name
 	return req, nil
 }
 

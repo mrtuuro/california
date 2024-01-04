@@ -26,6 +26,16 @@ type loggingMiddleware struct {
 	logger log.Logger
 }
 
+func (mw loggingMiddleware) DeleteUser(ctx context.Context) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "DeleteUser",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.DeleteUser(ctx)
+}
+
 func (mw loggingMiddleware) Register(ctx context.Context, user *model.User) (insertedUser *model.User, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
@@ -158,6 +168,14 @@ func (aw authMiddleware) ListAllUsers(ctx context.Context) (users []*model.User,
 		return nil, e
 	}
 	return aw.next.ListAllUsers(ctx)
+}
+
+func (aw authMiddleware) DeleteUser(ctx context.Context) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.DeleteUser(ctx)
 }
 
 func (aw authMiddleware) SearchUsers(ctx context.Context, name string) (users []*model.User, err error) {

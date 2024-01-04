@@ -25,6 +25,7 @@ type Store interface {
 	UpdateUser(ctx context.Context, reqUser *model.User) error
 	UpdateVehicle(ctx context.Context, reqVehicle *model.Vehicle) error
 	GetAllUsers(ctx context.Context) ([]*model.User, error)
+	DeleteUser(ctx context.Context, email string) error
 
 	// These are the station related methods.
 	InsertStation(ctx context.Context, station *model.Station) (*model.Station, error)
@@ -172,6 +173,15 @@ func (s *MongoStore) FindUsersByFilter(ctx context.Context, filter bson.M) ([]*m
 		users = append(users, &user)
 	}
 	return users, nil
+}
+
+func (s *MongoStore) DeleteUser(ctx context.Context, email string) error {
+	filter := bson.M{"Email": email}
+	_, err := s.UsersColl.DeleteOne(context.Background(), filter)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *MongoStore) InsertStation(ctx context.Context, station *model.Station) (*model.Station, error) {

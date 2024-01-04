@@ -33,6 +33,9 @@ type UserService interface {
 
 	// SearchUsers is used to search users by their name.
 	SearchUsers(ctx context.Context, name string) ([]*model.User, error)
+
+	// DeleteUser is used to delete a user.
+	DeleteUser(ctx context.Context) error
 }
 
 type userService struct {
@@ -162,7 +165,14 @@ func (s *userService) SearchUsers(ctx context.Context, name string) ([]*model.Us
 		return nil, err
 	}
 	return users, nil
-	return nil, nil
+}
+
+func (s *userService) DeleteUser(ctx context.Context) error {
+	email := ctx.Value("email").(string)
+	if err := s.store.DeleteUser(ctx, email); err != nil {
+		return err
+	}
+	return nil
 }
 
 func NewUserService(store repository.Store) UserService {

@@ -170,7 +170,7 @@ func (s *chargeStationService) FilterStation(ctx context.Context, brandNames []s
 	}
 
 	// currentType'a göre filtreleme
-	if currentType == 0 || currentType == 1 {
+	if currentType == 1 || currentType == 2 {
 		if elemMatch, ok := filter["Sockets"].(bson.M); ok {
 			elemMatch["$elemMatch"].(bson.M)["CurrentType"] = currentType
 		} else {
