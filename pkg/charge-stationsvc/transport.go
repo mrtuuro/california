@@ -24,6 +24,7 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	}
 
 	// POST /station adds a new station to the database.
+	// POST /station/bulk adds multiple stations to the database.
 	// GET /stations lists all the stations.
 	// GET /station?id=<stationId> gets a station by id.
 	// PUT /station?id=<stationId> updates the station info.
@@ -37,6 +38,12 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	r.Methods("POST").Path("/station").Handler(httptransport.NewServer(
 		e.StationRegisterEndpoint,
 		decodeStationRegisterRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("POST").Path("/station/bulk").Handler(httptransport.NewServer(
+		e.InsertStationsEndpoint,
+		decodeInsertStationsRequest,
 		encodeResponse,
 		options...,
 	))
@@ -99,6 +106,25 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 
 type errorer interface {
 	error() error
+}
+
+func decodeInsertStationsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req insertStationsRequest
+	req.Context = c
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
 }
 
 func decodeDeleteSocketRequest(ctx context.Context, r *http.Request) (interface{}, error) {

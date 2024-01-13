@@ -14,6 +14,7 @@ import (
 
 type StationService interface {
 	StationRegister(context.Context, *model.Station) (insertedStation *model.Station, err error)
+	InsertStations(context.Context, []*model.Station) (err error)
 	GetStations(context.Context) (stations []*model.Station, err error)
 	GetStation(ctx context.Context, stationId string) (station *model.Station, err error)
 	UpdateStation(ctx context.Context, station *model.Station, stationId string) (err error)
@@ -80,6 +81,51 @@ func (s *chargeStationService) StationRegister(ctx context.Context, station *mod
 		}
 	}
 	return existedStations[0], nil
+}
+
+func (s *chargeStationService) InsertStations(ctx context.Context, stations []*model.Station) (err error) {
+	for _, station := range stations {
+		lat := station.Latitude
+		long := station.Longitude
+
+		locationFilter := bson.M{
+			"Latitude":  lat,
+			"Longitude": long,
+		}
+		existedStations, err := s.store.FindStationByFilter(ctx, locationFilter)
+		if len(existedStations) == 0 || errors.Is(err, mongo.ErrNoDocuments) {
+			for i := range station.Sockets {
+				station.Sockets[i].ID = primitive.NewObjectID()
+			}
+
+			station.ID = primitive.NewObjectID()
+			_, err := s.store.InsertStation(ctx, station)
+			if err != nil {
+				return err
+			}
+
+			for i, _ := range station.Sockets {
+				err = s.store.InsertSocket(ctx, &station.Sockets[i])
+				if err != nil {
+					return err
+				}
+			}
+		} else {
+			for i := range station.Sockets {
+				station.Sockets[i].ID = primitive.NewObjectID()
+				err = s.store.InsertSocket(ctx, &station.Sockets[i])
+				if err != nil {
+					return err
+				}
+
+				err := s.store.PushSocketToStation(ctx, existedStations[0], station.Sockets[i])
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *chargeStationService) GetStations(ctx context.Context) ([]*model.Station, error) {

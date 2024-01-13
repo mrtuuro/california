@@ -38,6 +38,16 @@ func (mw loggingMiddleware) DeleteSocket(ctx context.Context, socketId string) (
 	return mw.next.DeleteSocket(ctx, socketId)
 }
 
+func (mw loggingMiddleware) InsertStations(ctx context.Context, stations []*model.Station) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "InsertStations",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.InsertStations(ctx, stations)
+}
+
 func (mw loggingMiddleware) FilterStation(ctx context.Context, brandName []string, socketType []string, currentType int) (stations []*model.Station, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
@@ -217,6 +227,14 @@ func (aw authMiddleware) DeleteSocket(ctx context.Context, socketId string) (err
 		return e
 	}
 	return aw.next.DeleteSocket(ctx, socketId)
+}
+
+func (aw authMiddleware) InsertStations(ctx context.Context, stations []*model.Station) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.InsertStations(ctx, stations)
 }
 
 func AuthMiddleware(signingKey string) Middleware {

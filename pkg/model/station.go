@@ -18,7 +18,7 @@ type Station struct {
 
 type Socket struct {
 	ID          primitive.ObjectID `bson:"_id" json:"id"`
-	Name        string             `bson:"Name" json:"name"` // Bu field bağlı olduğu istastonun Brand'ine eşit.
+	Name        string             `bson:"Name" json:"name"` // Bu field bağlı olduğu istasyonun Brand'ine eşit.
 	KW          float64            `bson:"KW" json:"kw"`
 	CurrentType CurrentType        `bson:"CurrentType" json:"current_type"`
 	Price       float64            `bson:"Price" json:"price"`
