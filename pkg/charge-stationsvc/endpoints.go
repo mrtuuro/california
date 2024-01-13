@@ -14,6 +14,7 @@ type BaseResponse struct {
 
 type StationEndpoints struct {
 	StationRegisterEndpoint   endpoint.Endpoint
+	InsertStationsEndpoint    endpoint.Endpoint
 	GetAllStationsEndpoint    endpoint.Endpoint
 	GetStationEndpoint        endpoint.Endpoint
 	UpdateStationInfoEndpoint endpoint.Endpoint
@@ -28,6 +29,7 @@ type StationEndpoints struct {
 func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 	return StationEndpoints{
 		StationRegisterEndpoint:   MakeRegisterStationEndpoint(c, s),
+		InsertStationsEndpoint:    MakeInsertStationsEndpoint(c, s),
 		GetAllStationsEndpoint:    MakeGetAllStationsEndpoint(c, s),
 		GetStationEndpoint:        MakeGetStationEndpoint(c, s),
 		UpdateStationInfoEndpoint: MakeUpdateStationInfoEndpoint(c, s),
@@ -39,6 +41,39 @@ func MakeServerEndpoints(c context.Context, s StationService) StationEndpoints {
 		DeleteSocketEndpoint:      MakeDeleteSocketEndpoint(c, s),
 	}
 }
+
+func MakeInsertStationsEndpoint(c context.Context, s StationService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(insertStationsRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+
+		e := s.InsertStations(c, req.Stations)
+		if e != nil {
+			return insertStationsResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: insertStationsResponse{
+				Err: e,
+			},
+		}, nil
+	}
+}
+
+type insertStationsRequest struct {
+	Context  context.Context
+	Stations []*model.Station
+}
+
+type insertStationsResponse struct {
+	*BaseResponse
+	Err error `json:"err,omitempty"`
+}
+
+func (r insertStationsResponse) Failed() error { return r.Err }
 
 func MakeDeleteSocketEndpoint(c context.Context, s StationService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {
