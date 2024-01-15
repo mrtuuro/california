@@ -12,7 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o bin/navigation cmd/navigation-service/n
 EXPOSE 3436
 
 
-ENV MONGO_DB_CONNECTION_URI=mongodb://roady_admin:To123567@172.31.28.79:27017
+ENV MONGO_DB_CONNECTION_URI=mongodb://californiaUser:tunc123admin@172.31.28.79:27017/california
 ENV MONGO_DATABASE_NAME=california
 ENV MONGO_USERS_COLLECTION_NAME=users
 ENV MONGO_STATIONS_COLLECTION_NAME=stations
