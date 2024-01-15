@@ -27,6 +27,68 @@ func LoggingMiddleware(logger log.Logger) Middleware {
 	}
 }
 
+func (mw loggingMiddleware) DeleteSocket(ctx context.Context, socketId string) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "DeleteSocket",
+			"socket_id", socketId,
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.DeleteSocket(ctx, socketId)
+}
+
+func (mw loggingMiddleware) InsertStations(ctx context.Context, stations []*model.Station) (err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "InsertStations",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.InsertStations(ctx, stations)
+}
+
+func (mw loggingMiddleware) FilterStation(ctx context.Context, brandName []string, socketType []string, currentType int) (stations []*model.Station, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "FilterStation",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.FilterStation(ctx, brandName, socketType, currentType)
+}
+
+func (mw loggingMiddleware) GetStation(ctx context.Context, stationId string) (station *model.Station, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "GetStation",
+			"station_id", stationId,
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.GetStation(ctx, stationId)
+}
+
+func (mw loggingMiddleware) ListBrands(ctx context.Context) (brands []string, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ListBrands",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.ListBrands(ctx)
+}
+
+func (mw loggingMiddleware) ListSockets(ctx context.Context) (sockets []*model.Socket, err error) {
+	defer func(begin time.Time) {
+		mw.logger.Log(
+			"method", "ListSockets",
+			"took", time.Since(begin),
+			"err", err)
+	}(time.Now())
+	return mw.next.ListSockets(ctx)
+}
+
 func (mw loggingMiddleware) StationRegister(ctx context.Context, station *model.Station) (insertedStation *model.Station, err error) {
 	defer func(begin time.Time) {
 		mw.logger.Log(
@@ -125,6 +187,54 @@ func (aw authMiddleware) SearchStation(ctx context.Context, brandName string) (s
 		return nil, e
 	}
 	return aw.next.SearchStation(ctx, brandName)
+}
+
+func (aw authMiddleware) ListBrands(ctx context.Context) (brands []string, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.ListBrands(ctx)
+}
+
+func (aw authMiddleware) ListSockets(ctx context.Context) (sockets []*model.Socket, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.ListSockets(ctx)
+}
+
+func (aw authMiddleware) FilterStation(ctx context.Context, brandName []string, socketType []string, currentType int) (stations []*model.Station, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.FilterStation(ctx, brandName, socketType, currentType)
+}
+
+func (aw authMiddleware) GetStation(ctx context.Context, stationId string) (station *model.Station, err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return nil, e
+	}
+	return aw.next.GetStation(ctx, stationId)
+}
+
+func (aw authMiddleware) DeleteSocket(ctx context.Context, socketId string) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.DeleteSocket(ctx, socketId)
+}
+
+func (aw authMiddleware) InsertStations(ctx context.Context, stations []*model.Station) (err error) {
+	ctx, e := isAuthenticated(ctx, aw.signingKey)
+	if e != nil {
+		return e
+	}
+	return aw.next.InsertStations(ctx, stations)
 }
 
 func AuthMiddleware(signingKey string) Middleware {

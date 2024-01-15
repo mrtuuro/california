@@ -16,6 +16,7 @@ type EndPoints struct {
 	UpdateVehicleEndpoint   endpoint.Endpoint
 	GetUsersEndpoint        endpoint.Endpoint
 	SearchUsers             endpoint.Endpoint
+	DeleteUser              endpoint.Endpoint
 }
 
 func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
@@ -28,6 +29,7 @@ func MakeServerEndpoints(c context.Context, s UserService) EndPoints {
 		UpdateVehicleEndpoint:   MakeUpdateVehicleEndpoint(c, s),
 		GetUsersEndpoint:        MakeListAllUsersEndpoint(c, s),
 		SearchUsers:             MakeSearchUsersEndpoint(c, s),
+		DeleteUser:              MakeDeleteUserEndpoint(c, s),
 	}
 }
 
@@ -35,6 +37,37 @@ type BaseResponse struct {
 	Message string      `json:"message,omitempty"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+func MakeDeleteUserEndpoint(c context.Context, s UserService) endpoint.Endpoint {
+	return func(_ context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(deleteUserRequest)
+		jwt := req.Context.Value("jwt")
+		c = context.WithValue(c, "Authorization", jwt)
+		e := s.DeleteUser(c)
+		if e != nil {
+			return deleteUserResponse{
+				Err: e,
+			}, e
+		}
+		return BaseResponse{
+			Message: "success",
+			Data: deleteUserResponse{
+				Err: e,
+			},
+		}, nil
+	}
+}
+
+type deleteUserRequest struct {
+	Context context.Context
+}
+
+type deleteUserResponse struct {
+	*BaseResponse
+	Err error `json:"err,omitempty"`
+}
+
+func (e deleteUserResponse) error() error { return e.Err }
 
 func MakeSearchUsersEndpoint(c context.Context, s UserService) endpoint.Endpoint {
 	return func(_ context.Context, request interface{}) (response interface{}, err error) {

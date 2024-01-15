@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"california/pkg/usersvc"
@@ -23,14 +24,26 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 	}
 
 	// POST /station adds a new station to the database.
+	// POST /station/bulk adds multiple stations to the database.
 	// GET /stations lists all the stations.
+	// GET /station?id=<stationId> gets a station by id.
 	// PUT /station?id=<stationId> updates the station info.
 	// DELETE /station?id=<stationId> deletes the station.
 	// GEt /station/search?brand=<brandName> searches for a station by brand name.
+	// GET /station/brands lists all the brands.
+	// GET /sockets lists all the sockets.
+	// GET /station/filter?brand=<brandName>&socket=<socketName>&current=<currentType> filters the stations by brand, socket and current type.
+	// DEL /socket?id=<socketId> deletes the socket.
 
 	r.Methods("POST").Path("/station").Handler(httptransport.NewServer(
 		e.StationRegisterEndpoint,
 		decodeStationRegisterRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("POST").Path("/station/bulk").Handler(httptransport.NewServer(
+		e.InsertStationsEndpoint,
+		decodeInsertStationsRequest,
 		encodeResponse,
 		options...,
 	))
@@ -58,11 +71,139 @@ func MakeStationHTTPHandlers(c context.Context, s StationService, log log.Logger
 		encodeResponse,
 		options...,
 	))
+	r.Methods("GET").Path("/station/brands").Handler(httptransport.NewServer(
+		e.ListBrandsEndpoint,
+		decodeListBrandsRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/sockets").Handler(httptransport.NewServer(
+		e.ListSocketsEndpoint,
+		decodeListSocketsRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/station/filter").Handler(httptransport.NewServer(
+		e.FilterStationsEndpoint,
+		decodeFilterStationsRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("GET").Path("/station").Handler(httptransport.NewServer(
+		e.GetStationEndpoint,
+		decodeGetStationRequest,
+		encodeResponse,
+		options...,
+	))
+	r.Methods("DELETE").Path("/socket").Handler(httptransport.NewServer(
+		e.DeleteSocketEndpoint,
+		decodeDeleteSocketRequest,
+		encodeResponse,
+		options...,
+	))
 	return r
 }
 
 type errorer interface {
 	error() error
+}
+
+func decodeInsertStationsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req insertStationsRequest
+	req.Context = c
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+func decodeDeleteSocketRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	socketId := r.URL.Query().Get("id")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	c = context.WithValue(c, "socketId", socketId)
+	var req deleteSocketRequest
+	req.Context = c
+	req.SocketID = socketId
+	return req, nil
+}
+
+func decodeGetStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+	stationId := r.URL.Query().Get("id")
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	c = context.WithValue(c, "stationId", stationId)
+	var req getStationRequest
+	req.Context = c
+	return req, nil
+}
+
+func decodeFilterStationsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+
+	var req filterStationsRequest
+	req.Context = c
+	req.BrandNames = r.URL.Query()["brand"]
+	req.SocketNames = r.URL.Query()["socket"]
+	req.CurrentType, _ = strconv.Atoi(r.URL.Query().Get("current"))
+	return req, nil
+}
+
+func decodeListSocketsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req listSocketsRequest
+	req.Context = c
+	return req, nil
+}
+
+func decodeListBrandsRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	authHeader := r.Header.Get("Authorization")
+	jwtToken := strings.TrimPrefix(authHeader, "Bearer ")
+	if authHeader == "" {
+		return nil, usersvc.ErrNoAuthTokenHeader
+	}
+
+	ctx = context.WithValue(r.Context(), "jwt", jwtToken)
+	c := context.WithValue(r.Context(), "jwt", jwtToken)
+	var req listBrandsRequest
+	req.Context = c
+	return req, nil
 }
 
 func decodeSearchStationRequest(ctx context.Context, r *http.Request) (interface{}, error) {

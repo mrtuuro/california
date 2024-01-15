@@ -1,0 +1,24 @@
+FROM golang:1.21.4-alpine
+
+WORKDIR /app
+
+COPY go.mod ./
+RUN go mod download
+
+COPY ./ ./
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o bin/users cmd/user-service/user_svc_main.go
+
+EXPOSE 3434
+
+ENV MONGO_DB_CONNECTION_URI=mongodb://californiaUser:tunc123admin@172.31.28.79:27017/california
+ENV MONGO_DATABASE_NAME=california
+ENV MONGO_USERS_COLLECTION_NAME=users
+ENV MONGO_STATIONS_COLLECTION_NAME=stations
+ENV MONGO_SOCKETS_COLLECTION_NAME=sockets
+ENV USER_HTTP_ADDRESS=:3434
+ENV STATIONS_HTTP_ADDRESS=:3435
+ENV NAVIGATION_HTTP_ADDRESS=:3436
+ENV SECRET_KEY=california_secret_key
+
+ENTRYPOINT ["./bin/users"]
